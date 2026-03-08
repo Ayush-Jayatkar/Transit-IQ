@@ -22,11 +22,11 @@ A real-time command center for operators to monitor PMPML bus locations, route s
 ![Fleet Tracking](docs/fleet.png)
 
 ### 3. Demand Forecasting
-Visualizing ML-driven predictions of passenger volume across the network, enabling proactive resource allocation before peak hours.
+Deep-dive into route-specific forecasts within the Operator Dashboard. Features real-time demand curves, 4-hour forward-looking peaks, and integrated historical comparisons such as Weekday vs. Weekend volume profiles to anticipate passenger surges.
 ![Demand Forecasting](docs/demand.png)
 
 ### 4. Fleet Optimization
-AI-powered strategy recommendations (via OR-Tools) that allow operators to balance wait times, fuel efficiency, and passenger coverage with a single click.
+Data-driven fleet deployment interface that allows operators to visualize live bus distribution and apply mathematically optimized strategies. Provides a visual tradeoff analysis between wait scores, fuel costs, and passenger coverage based on live telemetry.
 ![Fleet Optimization](docs/optimize.png)
 
 ---
