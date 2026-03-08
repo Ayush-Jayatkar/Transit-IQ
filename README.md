@@ -26,13 +26,14 @@ A real-time command center for operators to monitor PMPML bus locations, route s
 > **Demand Heatmap on Live Map**
 
 <!-- Add screenshot of Demand Heatmap here -->
-![Demand Heatmap]![Uploading image.png…]()
+<img width="2559" height="1296" alt="image" src="https://github.com/user-attachments/assets/292d6971-8b1a-4e0f-abc4-284e1349a638" />
 
 
 > **Passenger App — RAPTOR Journey Planner**
 
 <!-- Add screenshot of Passenger App here -->
-![Passenger App](./docs/screenshots/passenger_app.png)
+<img width="2559" height="1296" alt="image" src="https://github.com/user-attachments/assets/753edc74-f02c-40d7-a36b-814868ef06bf" />
+
 
 ---
 
