@@ -793,7 +793,22 @@ export default function OperatorDashboard() {
                                                     <div style={{ fontSize: 13, fontWeight: 800, color: '#e88c00' }}>₹{st.fuel_cost_inr_daily.toLocaleString()}</div>
                                                 </div>
                                             </div>
-                                            <button style={{ width: '100%', padding: '8px', marginTop: 10, borderRadius: 8, border: 'none', background: st.color, color: '#fff', fontWeight: 800, cursor: 'pointer' }}>Apply Strategy</button>
+                                            <button
+                                                onClick={(e) => {
+                                                    const btn = e.currentTarget;
+                                                    const originalText = btn.innerText;
+                                                    const originalBg = btn.style.background;
+                                                    btn.innerText = '✅ Strategy Applied';
+                                                    btn.style.background = '#00a86b';
+                                                    setTimeout(() => {
+                                                        btn.innerText = originalText;
+                                                        btn.style.background = originalBg;
+                                                    }, 3000);
+                                                }}
+                                                style={{ width: '100%', padding: '8px', marginTop: 10, borderRadius: 8, border: 'none', background: st.color, color: '#fff', fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s' }}
+                                            >
+                                                Apply Strategy
+                                            </button>
                                         </div>
                                     ))}
                                 </div>
