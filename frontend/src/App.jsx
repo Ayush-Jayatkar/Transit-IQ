@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
+import { Satellite, Bus } from 'lucide-react';
 import LandingPage from './pages/LandingPage.jsx';
 import OperatorDashboard from './pages/OperatorDashboard.jsx';
 import PassengerApp from './pages/PassengerApp.jsx';
@@ -38,7 +39,10 @@ export default function App() {
             background: '#f0f4f9', padding: 4, borderRadius: 12,
             border: '1px solid rgba(15,40,90,0.10)',
           }}>
-            {[['🛰️ Operator', '/operator'], ['🚌 Passenger', '/passenger']].map(([label, path]) => (
+            {[
+              { label: 'Operator', path: '/operator', icon: <Satellite size={16} /> },
+              { label: 'Passenger', path: '/passenger', icon: <Bus size={16} /> }
+            ].map(({ label, path, icon }) => (
               <Link key={path} to={path} style={{ textDecoration: 'none' }}>
                 <button style={{
                   padding: '7px 20px', borderRadius: 8,
@@ -47,8 +51,10 @@ export default function App() {
                   background: loc.pathname === path ? '#ffffff' : 'transparent',
                   color: loc.pathname === path ? '#1a6cf5' : '#4a5f80',
                   boxShadow: loc.pathname === path ? '0 1px 6px rgba(15,40,90,0.10)' : 'none',
-                  transition: 'all 0.18s',
-                }}>{label}</button>
+                  transition: 'all 0.18s', display: 'flex', alignItems: 'center', gap: 6
+                }}>
+                  {icon} {label}
+                </button>
               </Link>
             ))}
           </div>

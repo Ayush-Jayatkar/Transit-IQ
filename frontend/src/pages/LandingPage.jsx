@@ -1,25 +1,37 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Users, Bus, Map, Banknote, Brain, Zap, CloudRain, Ticket, Search, Satellite, Github, Twitter, Mail } from 'lucide-react';
 
 const stats = [
-    { value: '2.5M', label: 'Daily Commuters', icon: '👥' },
-    { value: '2,100+', label: 'PMPML Buses', icon: '🚌' },
-    { value: '500+', label: 'Routes Covered', icon: '🗺️' },
-    { value: '₹0', label: 'Tool Cost', icon: '💰' },
+    { value: '2.5M', label: 'Daily Commuters', icon: <Users size={28} /> },
+    { value: '2,100+', label: 'PMPML Buses', icon: <Bus size={28} /> },
+    { value: '500+', label: 'Routes Covered', icon: <Map size={28} /> },
+    { value: '₹0', label: 'Tool Cost', icon: <Banknote size={28} /> },
 ];
 
 const features = [
-    { icon: '🧠', title: 'Demand Forecasting', desc: 'Facebook Prophet predicts passenger demand per route per 15-minute slot — up to 4 hours ahead.' },
-    { icon: '⚡', title: 'Fleet Optimization', desc: 'Google OR-Tools computes optimal bus frequency per route based on live demand signals.' },
-    { icon: '🌧️', title: 'Rain-to-Bus Model', desc: 'Pune-specific: rain forecast shifts 2-wheeler commuters to buses — system pre-positions fleet.' },
-    { icon: '🎭', title: 'Event-Aware AI', desc: 'Ganpati, IPL, college exams — model integrates Pune event calendar as input features.' },
-    { icon: '🔍', title: 'Anomaly Detection', desc: 'IsolationForest flags routes deviating >30% from forecast for immediate operator review.' },
-    { icon: '🗺️', title: 'Multi-Modal Planner', desc: 'Bus + Metro + Yulu treated as one unified network for seamless journey planning.' },
+    { icon: <Brain size={26} />, title: 'Demand Forecasting', desc: 'Facebook Prophet predicts passenger demand per route per 15-minute slot — up to 4 hours ahead.' },
+    { icon: <Zap size={26} />, title: 'Fleet Optimization', desc: 'Google OR-Tools computes optimal bus frequency per route based on live demand signals.' },
+    { icon: <CloudRain size={26} />, title: 'Rain-to-Bus Model', desc: 'Pune-specific: rain forecast shifts 2-wheeler commuters to buses — system pre-positions fleet.' },
+    { icon: <Ticket size={26} />, title: 'Event-Aware AI', desc: 'Ganpati, IPL, college exams — model integrates Pune event calendar as input features.' },
+    { icon: <Search size={26} />, title: 'Anomaly Detection', desc: 'IsolationForest flags routes deviating >30% from forecast for immediate operator review.' },
+    { icon: <Map size={26} />, title: 'Multi-Modal Planner', desc: 'Bus + Metro + Yulu treated as one unified network for seamless journey planning.' },
 ];
 
 const stack = ['FastAPI', 'Facebook Prophet', 'OR-Tools', 'React', 'Leaflet.js', 'Open-Meteo', 'SQLite', 'scikit-learn'];
 
 export default function LandingPage() {
+    const WORDS = ["Intelligent", "Smart", "Predictive", "Adaptive"];
+    const [wordIdx, setWordIdx] = useState(0);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setWordIdx((prev) => (prev + 1) % WORDS.length);
+        }, 2200);
+        return () => clearInterval(interval);
+    }, []);
+
     return (
         <div style={{
             height: '100vh', overflowY: 'auto', overflowX: 'hidden',
@@ -47,13 +59,17 @@ export default function LandingPage() {
                     }}>BlueBit 4.0 · PS4</span>
                 </div>
                 <div style={{ display: 'flex', gap: 10 }}>
-                    <Link to="/operator"><button className="btn btn-ghost">🛰️ Operator</button></Link>
-                    <Link to="/passenger"><button className="btn btn-primary">🚌 Passenger App</button></Link>
+                    <Link to="/operator"><button className="btn btn-ghost"><Satellite size={16} /> Operator</button></Link>
+                    <Link to="/passenger"><button className="btn btn-primary"><Bus size={16} /> Passenger App</button></Link>
                 </div>
             </nav>
 
             {/* Hero */}
-            <section style={{
+            <motion.section 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6 }}
+                style={{
                 background: 'linear-gradient(135deg, #1a6cf5 0%, #0f4bb0 60%, #6c3acb 100%)',
                 padding: '80px 48px 72px', textAlign: 'center', color: '#fff',
             }}>
@@ -70,7 +86,20 @@ export default function LandingPage() {
                     fontSize: 'clamp(34px,5vw,64px)', fontWeight: 900, lineHeight: 1.1,
                     fontFamily: 'Orbitron, sans-serif', marginBottom: 24, letterSpacing: '0.01em',
                 }}>
-                    Intelligent Brain<br />for Pune's Buses
+                    <span style={{ display: 'inline-block', position: 'relative', overflow: 'hidden' }}>
+                        <AnimatePresence mode="popLayout">
+                            <motion.span
+                                key={WORDS[wordIdx]}
+                                initial={{ y: 30, opacity: 0 }}
+                                animate={{ y: 0, opacity: 1 }}
+                                exit={{ y: -30, opacity: 0 }}
+                                transition={{ type: "spring", stiffness: 300, damping: 25 }}
+                                style={{ display: 'inline-block', color: '#6fffb8' }}
+                            >
+                                {WORDS[wordIdx]}
+                            </motion.span>
+                        </AnimatePresence>
+                    </span> Brain<br />for Pune's Buses
                 </h1>
 
                 <p style={{
@@ -92,7 +121,7 @@ export default function LandingPage() {
                         }}
                             onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-2px)'}
                             onMouseLeave={e => e.currentTarget.style.transform = 'none'}
-                        >🛰️ Open Operator Dashboard</button>
+                        ><Satellite size={16} /> Open Operator Dashboard</button>
                     </Link>
                     <Link to="/passenger">
                         <button style={{
@@ -103,23 +132,26 @@ export default function LandingPage() {
                         }}
                             onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.28)'}
                             onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.18)'}
-                        >🚌 Plan My Journey</button>
+                        ><Bus size={16} /> Plan My Journey</button>
                     </Link>
                 </div>
-            </section>
+            </motion.section>
 
             {/* Stats */}
             <section style={{
                 display: 'flex', justifyContent: 'center', gap: 20,
                 padding: '52px 48px 40px', flexWrap: 'wrap', maxWidth: 900, margin: '0 auto',
             }}>
-                {stats.map(s => (
-                    <div key={s.label} className="metric-card"
+                {stats.map((s, i) => (
+                    <motion.div key={s.label} className="metric-card"
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.4, delay: i * 0.1 }}
                         style={{ minWidth: 170, alignItems: 'center', textAlign: 'center', gap: 6, flex: 1 }}>
-                        <span style={{ fontSize: 30 }}>{s.icon}</span>
+                        <span style={{ color: '#1a6cf5', display: 'flex', alignItems: 'center', justifyContent: 'center', height: 38 }}>{s.icon}</span>
                         <span className="metric-value">{s.value}</span>
                         <span className="metric-label">{s.label}</span>
-                    </div>
+                    </motion.div>
                 ))}
             </section>
 
@@ -130,35 +162,85 @@ export default function LandingPage() {
                     color: '#0d1b3e', marginBottom: 32
                 }}>What Makes Transit-IQ Different</h2>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
-                    {features.map(f => (
-                        <div key={f.title} className="metric-card" style={{ padding: '22px 20px', gap: 10 }}>
-                            <span style={{ fontSize: 28 }}>{f.icon}</span>
+                    {features.map((f, i) => (
+                        <motion.div key={f.title} className="metric-card" style={{ padding: '22px 20px', gap: 10 }}
+                            initial={{ opacity: 0, y: 20 }}
+                            whileInView={{ opacity: 1, y: 0 }}
+                            viewport={{ once: true }}
+                            transition={{ duration: 0.5, delay: i * 0.05 }}
+                        >
+                            <span style={{ color: '#1a6cf5', display: 'flex', alignContent: 'center', height: 32 }}>{f.icon}</span>
                             <strong style={{ fontSize: 14, color: '#1a6cf5' }}>{f.title}</strong>
                             <span style={{ fontSize: 13, color: '#4a5f80', lineHeight: 1.65 }}>{f.desc}</span>
-                        </div>
+                        </motion.div>
                     ))}
                 </div>
             </section>
 
-            {/* Tech stack */}
-            <section style={{
-                textAlign: 'center', padding: '0 48px 72px',
-                borderTop: '1px solid rgba(15,40,90,0.08)',
-                background: '#fff', margin: '0', paddingTop: 40,
+            {/* Professional Modern Footer */}
+            <footer style={{
+                background: '#0a101f', // Deep dark blue for professional look
+                color: '#fff',
+                padding: '60px 48px 30px',
+                borderTop: '1px solid rgba(255,255,255,0.05)'
             }}>
-                <p style={{
-                    fontSize: 12, color: '#4a5f80', marginBottom: 16, textTransform: 'uppercase',
-                    letterSpacing: '0.1em', fontWeight: 600
-                }}>100% Free Open-Source Stack</p>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
-                    {stack.map(t => (
-                        <span key={t} className="pill pill-blue" style={{ fontSize: 12, padding: '5px 13px' }}>{t}</span>
-                    ))}
+                <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', flexWrap: 'wrap', gap: 40, justifyContent: 'space-between', marginBottom: 40 }}>
+                    {/* Brand Col */}
+                    <div style={{ flex: '1 1 300px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'linear-gradient(135deg,#1a6cf5,#3b82f6)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                <Satellite size={18} color="#fff" />
+                            </div>
+                            <span style={{ fontSize: 20, fontWeight: 900, fontFamily: 'Orbitron, sans-serif' }}>Transit-IQ</span>
+                        </div>
+                        <p style={{ color: '#9aafc4', fontSize: 13, lineHeight: 1.6, maxWidth: 320 }}>
+                            Intelligent transit operations using advanced machine learning and operational research to improve commute reliability for 2.5 million daily riders.
+                        </p>
+                        <div style={{ display: 'flex', gap: 12, marginTop: 20 }}>
+                            <a href="https://github.com/Ayush-Jayatkar/Transit-IQ.git" style={{ color: '#9aafc4', transition: 'color 0.2s', cursor: 'pointer' }} onMouseEnter={e => e.currentTarget.style.color = '#fff'} onMouseLeave={e => e.currentTarget.style.color = '#9aafc4'}><Github size={20} /></a>
+                            <a href="#" style={{ color: '#9aafc4', transition: 'color 0.2s', cursor: 'pointer' }} onMouseEnter={e => e.currentTarget.style.color = '#fff'} onMouseLeave={e => e.currentTarget.style.color = '#9aafc4'}><Twitter size={20} /></a>
+                            <a href="#" style={{ color: '#9aafc4', transition: 'color 0.2s', cursor: 'pointer' }} onMouseEnter={e => e.currentTarget.style.color = '#fff'} onMouseLeave={e => e.currentTarget.style.color = '#9aafc4'}><Mail size={20} /></a>
+                        </div>
+                    </div>
+
+                    {/* Tech Stack Col */}
+                    <div style={{ flex: '1 1 300px' }}>
+                        <h4 style={{ fontSize: 14, fontWeight: 700, marginBottom: 20, color: '#fff' }}>100% Free Open-Source Stack</h4>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                            {stack.map(t => (
+                                <span key={t} style={{ 
+                                    background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
+                                    color: '#b3c4d9', fontSize: 11, padding: '6px 14px', borderRadius: 99
+                                }}>{t}</span>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Platform Col */}
+                    <div style={{ flex: '1 1 150px' }}>
+                        <h4 style={{ fontSize: 14, fontWeight: 700, marginBottom: 20, color: '#fff' }}>Platform</h4>
+                        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            <li><Link to="/operator" style={{ color: '#9aafc4', fontSize: 13, textDecoration: 'none', transition: 'color 0.2s' }} onMouseEnter={e => e.currentTarget.style.color = '#fff'} onMouseLeave={e => e.currentTarget.style.color = '#9aafc4'}>Operator Dashboard</Link></li>
+                            <li><Link to="/passenger" style={{ color: '#9aafc4', fontSize: 13, textDecoration: 'none', transition: 'color 0.2s' }} onMouseEnter={e => e.currentTarget.style.color = '#fff'} onMouseLeave={e => e.currentTarget.style.color = '#9aafc4'}>Passenger App</Link></li>
+                            <li><a href="#" style={{ color: '#9aafc4', fontSize: 13, textDecoration: 'none', transition: 'color 0.2s' }} onMouseEnter={e => e.currentTarget.style.color = '#fff'} onMouseLeave={e => e.currentTarget.style.color = '#9aafc4'}>API Documentation</a></li>
+                        </ul>
+                    </div>
                 </div>
-                <p style={{ marginTop: 14, fontSize: 12, color: '#9aafc4' }}>
-                    ₹0 API cost · Fully buildable on any laptop · Open-source GitHub repo
-                </p>
-            </section>
+
+                <div style={{ 
+                    maxWidth: 1100, margin: '0 auto', borderTop: '1px solid rgba(255,255,255,0.08)',
+                    paddingTop: 24, display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between',
+                    alignItems: 'center', gap: 16
+                }}>
+                    <div style={{ fontSize: 12, color: '#68809e' }}>
+                        © {new Date().getFullYear()} Transit-IQ. All rights reserved.
+                    </div>
+                    <div style={{ fontSize: 12, color: '#68809e', display: 'flex', gap: 16 }}>
+                        <a href="#" style={{ color: 'inherit', textDecoration: 'none' }}>Privacy Policy</a>
+                        <a href="#" style={{ color: 'inherit', textDecoration: 'none' }}>Terms of Service</a>
+                    </div>
+                </div>
+            </footer>
         </div>
     );
 }

@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, CircleMarker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, LineChart, Line, Legend } from 'recharts';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Map, CheckCircle, AlertCircle, Clock, Activity, Thermometer, Brain, TrendingUp, Bot, Leaf, Building, Wrench, Globe, Settings, Users, Bus, ArrowRight, Zap, Target } from 'lucide-react';
 import api from '../api.js';
 import 'leaflet/dist/leaflet.css';
 
@@ -66,7 +68,10 @@ function ProgressBar({ value, color, height = 4 }) {
 function SectionHdr({ children, right, icon }) {
     return (
         <div style={{ padding: '10px 14px 6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 11, fontWeight: 800, color: '#0d1b3e', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{icon} {children}</span>
+            <span style={{ fontSize: 11, fontWeight: 800, color: '#0d1b3e', textTransform: 'uppercase', letterSpacing: '0.07em', display: 'flex', alignItems: 'center', gap: 6 }}>
+                {icon}
+                {children}
+            </span>
             {right && <span style={{ fontSize: 10, color: '#9aafc4', fontWeight: 600 }}>{right}</span>}
         </div>
     );
@@ -201,12 +206,13 @@ export default function OperatorDashboard() {
     const visBuses = selRoute ? buses.filter(b => b.route_id === selRoute) : buses;
     const pendRecs = recs.filter(r => r.status === 'pending');
 
-    const TabBtn = ({ id, label, badge }) => (
+    const TabBtn = ({ id, label, icon, badge }) => (
         <button onClick={() => setTab(id)} style={{
             flex: '1 0 auto', padding: '8px 10px', border: 'none', cursor: 'pointer', fontSize: 11, fontWeight: 700, borderRadius: 7, transition: 'all 0.15s',
             background: tab === id ? '#1a6cf5' : 'transparent', color: tab === id ? '#fff' : '#9aafc4',
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4, whiteSpace: 'nowrap'
         }}>
+            {icon}
             {label}
             {badge > 0 && <span style={{ background: tab === id ? 'rgba(255,255,255,0.3)' : '#e53935', color: '#fff', fontSize: 9, fontWeight: 800, padding: '1px 5px', borderRadius: 99 }}>{badge}</span>}
         </button>
@@ -231,10 +237,12 @@ export default function OperatorDashboard() {
                 background: '#fff', borderRight: '1px solid rgba(15,40,90,0.09)',
                 display: 'flex', flexDirection: 'column',
             }}>
-                {leftOpen && <>
+                {leftOpen && <AnimatePresence mode="popLayout"><motion.div
+                    initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }}
+                    style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                     {/* Header */}
                     <div style={{ padding: '12px 14px 10px', background: 'linear-gradient(135deg,#1a6cf5,#3b82f6)', color: '#fff', flexShrink: 0 }}>
-                        <div style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>🗺️ Route Control</div>
+                        <div style={{ fontSize: 12, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}><Map size={14} /> Route Control</div>
                         <div style={{ fontSize: 10, opacity: 0.8 }}>{routes.length} routes · {total} buses</div>
                     </div>
 
@@ -322,7 +330,7 @@ export default function OperatorDashboard() {
                             )}
                         </div>
                     )}
-                </>}
+                </motion.div></AnimatePresence>}
             </div>
 
             {/* ══════ CENTER MAP ══════ */}
@@ -355,17 +363,17 @@ export default function OperatorDashboard() {
                     display: 'flex', alignItems: 'stretch',
                 }}>
                     {[
-                        { v: total, l: 'Total Buses', c: '#1a6cf5', icon: '🚌' },
-                        { v: onTimePct + '%', l: 'On Schedule', c: '#00a86b', icon: '✅' },
-                        { v: crowdedN, l: 'Crowded', c: '#e88c00', icon: '🟠' },
-                        { v: delayedN, l: 'Delayed >5m', c: '#fb8c00', icon: '⏱️' },
-                        { v: breakdownN, l: 'Breakdown', c: '#e53935', icon: '🔴' },
-                        { v: avgOcc + '%', l: 'Avg Load', c: '#6c3acb', icon: '📊' },
-                        { v: (dailyEst / 1e5).toFixed(1) + 'L', l: 'Est. Daily Riders', c: '#1a6cf5', icon: '👥' },
+                        { v: total, l: 'Total Buses', c: '#1a6cf5', icon: <Bus size={14} /> },
+                        { v: onTimePct + '%', l: 'On Schedule', c: '#00a86b', icon: <CheckCircle size={14} /> },
+                        { v: crowdedN, l: 'Crowded', c: '#e88c00', icon: <AlertCircle size={14} /> },
+                        { v: delayedN, l: 'Delayed >5m', c: '#fb8c00', icon: <Clock size={14} /> },
+                        { v: breakdownN, l: 'Breakdown', c: '#e53935', icon: <AlertCircle size={14} /> },
+                        { v: avgOcc + '%', l: 'Avg Load', c: '#6c3acb', icon: <Activity size={14} /> },
+                        { v: (dailyEst / 1e5).toFixed(1) + 'L', l: 'Est. Daily Riders', c: '#1a6cf5', icon: <Users size={14} /> },
                     ].map(m => (
                         <div key={m.l} style={{ flex: 1, padding: '8px 10px', textAlign: 'center', borderRight: '1px solid rgba(15,40,90,0.07)' }}>
                             <div style={{ fontSize: 16, fontWeight: 900, color: m.c, fontFamily: 'JetBrains Mono,monospace' }}>{m.v}</div>
-                            <div style={{ fontSize: 9, color: '#9aafc4', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{m.icon} {m.l}</div>
+                            <div style={{ fontSize: 9, color: '#9aafc4', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>{m.icon} {m.l}</div>
                         </div>
                     ))}
                     <div style={{ padding: '8px 14px', display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -462,27 +470,29 @@ export default function OperatorDashboard() {
                 background: '#f8fafc', borderLeft: '1px solid rgba(15,40,90,0.09)',
                 display: 'flex', flexDirection: 'column',
             }}>
-                {rightOpen && <>
+                {rightOpen && <AnimatePresence mode="popLayout"><motion.div
+                    initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.3 }}
+                    style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                     {/* Tab bar */}
                     <div style={{ padding: '10px 10px 7px', background: '#fff', borderBottom: '1px solid rgba(15,40,90,0.08)', display: 'flex', gap: 4, flexShrink: 0, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-                        <TabBtn id="fleet" label="🚌 Fleet" />
-                        <TabBtn id="demand" label="📊 Demand" />
-                        <TabBtn id="optimize" label="⚙️ Optimize" />
-                        <TabBtn id="alerts" label="🔔 Alerts" badge={alerts.length} />
-                        <TabBtn id="ai" label="🤖 AI" />
+                        <TabBtn id="fleet" label="Fleet" icon={<Bus size={14}/>} />
+                        <TabBtn id="demand" label="Demand" icon={<TrendingUp size={14}/>}/>
+                        <TabBtn id="optimize" label="Optimize" icon={<Settings size={14}/>}/>
+                        <TabBtn id="alerts" label="Alerts" icon={<AlertCircle size={14}/>} badge={alerts.length} />
+                        <TabBtn id="ai" label="AI" icon={<Bot size={14}/>} />
                     </div>
 
                     {/* ── FLEET tab ── */}
                     {tab === 'fleet' && (
-                        <div style={{ flex: 1, overflowY: 'auto' }}>
-                            <SectionHdr icon="📍" right="Live">Fleet Status</SectionHdr>
+                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} style={{ flex: 1, overflowY: 'auto' }}>
+                            <SectionHdr icon={<Map size={14}/>} right="Live">Fleet Status</SectionHdr>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, padding: '0 12px 10px' }}>
-                                <MiniStat icon="🚌" label="Total Buses" value={total} color="#1a6cf5" />
-                                <MiniStat icon="✅" label="On Schedule" value={onTimePct + '%'} color="#00a86b" />
-                                <MiniStat icon="🟠" label="Crowded >85%" value={crowdedN} color="#e88c00" />
-                                <MiniStat icon="⏱️" label="Delayed >5m" value={delayedN} color="#fb8c00" />
-                                <MiniStat icon="🔴" label="Breakdown" value={breakdownN} color="#e53935" />
-                                <MiniStat icon="📊" label="Avg Load" value={avgOcc + '%'} color="#6c3acb" />
+                                <MiniStat icon={<Bus size={16}/>} label="Total Buses" value={total} color="#1a6cf5" />
+                                <MiniStat icon={<CheckCircle size={16}/>} label="On Schedule" value={onTimePct + '%'} color="#00a86b" />
+                                <MiniStat icon={<AlertCircle size={16}/>} label="Crowded >85%" value={crowdedN} color="#e88c00" />
+                                <MiniStat icon={<Clock size={16}/>} label="Delayed >5m" value={delayedN} color="#fb8c00" />
+                                <MiniStat icon={<AlertCircle size={16}/>} label="Breakdown" value={breakdownN} color="#e53935" />
+                                <MiniStat icon={<Activity size={16}/>} label="Avg Load" value={avgOcc + '%'} color="#6c3acb" />
                             </div>
 
                             {/* Load breakdown bar */}
@@ -545,22 +555,22 @@ export default function OperatorDashboard() {
 
                             {/* AI Recommendations */}
                             <div style={{ padding: '0 12px 4px', borderTop: '1px solid rgba(15,40,90,0.08)', paddingTop: 10 }}>
-                                <SectionHdr icon="🧠" right={`${pendRecs.length} pending`}>AI Recommendations</SectionHdr>
+                                <SectionHdr icon={<Brain size={14}/>} right={`${pendRecs.length} pending`}>AI Recommendations</SectionHdr>
                             </div>
                             <div style={{ padding: '0 12px 16px' }}>
                                 {pendRecs.length === 0 ? (
                                     <div style={{ padding: '20px', textAlign: 'center', color: '#9aafc4', fontSize: 12, background: '#fff', borderRadius: 10 }}>✅ No pending recommendations</div>
                                 ) : pendRecs.map(r => <RecCard key={r.id} rec={r} onApprove={async (id) => { await api.approveRec(id); load(); }} onReject={async (id) => { await api.rejectRec(id); load(); }} />)}
                             </div>
-                        </div>
+                        </motion.div>
                     )}
 
                     {/* ── DEMAND tab ── */}
                     {tab === 'demand' && (
-                        <div style={{ flex: 1, overflowY: 'auto' }}>
+                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} style={{ flex: 1, overflowY: 'auto' }}>
                             {selObj ? (
                                 <>
-                                    <SectionHdr icon="📈" right="next 4h">{selObj.route_name} Forecast</SectionHdr>
+                                    <SectionHdr icon={<TrendingUp size={14}/>} right="next 4h">{selObj.route_name} Forecast</SectionHdr>
                                     <div style={{ padding: '0 12px 12px' }}>
                                         <div style={{ background: '#fff', borderRadius: 12, padding: '12px', border: '1px solid rgba(15,40,90,0.09)' }}>
                                             <ResponsiveContainer width="100%" height={180}>
@@ -627,7 +637,7 @@ export default function OperatorDashboard() {
                                 </>
                             ) : (
                                 <>
-                                    <SectionHdr icon="📊" right="peak next 2h">All Routes Demand</SectionHdr>
+                                    <SectionHdr icon={<Activity size={14}/>} right="peak next 2h">All Routes Demand</SectionHdr>
                                     {accuracy?.training_status === 'in_progress' && (
                                         <div style={{ margin: '0 12px 10px', padding: '12px 14px', background: '#fff8e1', borderRadius: 10, border: '1px solid rgba(232,140,0,0.3)', fontSize: 11, color: '#e88c00', lineHeight: 1.6 }}>
                                             ⏳ <strong>ML model training in background</strong> (~2 min)<br />
@@ -668,26 +678,26 @@ export default function OperatorDashboard() {
                                     </div>
                                 </>
                             )}
-                        </div>
+                        </motion.div>
                     )}
 
                     {/* ── ALERTS tab ── */}
                     {tab === 'alerts' && (
-                        <div style={{ flex: 1, overflowY: 'auto' }}>
-                            <SectionHdr icon="🔔" right={`${alerts.length} active`}>Anomaly Detection</SectionHdr>
+                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} style={{ flex: 1, overflowY: 'auto' }}>
+                            <SectionHdr icon={<AlertCircle size={14}/>} right={`${alerts.length} active`}>Anomaly Detection</SectionHdr>
                             <div style={{ padding: '0 12px 12px' }}>
                                 {alerts.length === 0 ? (
-                                    <div style={{ padding: '28px', textAlign: 'center', color: '#9aafc4', fontSize: 13, background: '#fff', borderRadius: 10 }}>✅ System normal — no anomalies</div>
+                                    <div style={{ padding: '28px', textAlign: 'center', color: '#9aafc4', fontSize: 13, background: '#fff', borderRadius: 10 }}><CheckCircle size={16} style={{display:'inline', verticalAlign:'middle'}}/> System normal — no anomalies</div>
                                 ) : alerts.map((a, i) => <AlertItem key={i} a={a} />)}
                             </div>
-                        </div>
+                        </motion.div>
                     )}
 
                     {/* ── AI tab ── */}
                     {tab === 'ai' && (
-                        <div style={{ flex: 1, overflowY: 'auto' }}>
+                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} style={{ flex: 1, overflowY: 'auto' }}>
                             {/* Model accuracy */}
-                            <SectionHdr icon="🤖">Model Accuracy</SectionHdr>
+                            <SectionHdr icon={<Bot size={14}/>}>Model Accuracy</SectionHdr>
                             <div style={{ padding: '0 12px 12px' }}>
                                 <div style={{ background: '#fff', borderRadius: 12, padding: '14px', border: '1px solid rgba(15,40,90,0.09)', marginBottom: 10 }}>
                                     <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
@@ -724,15 +734,15 @@ export default function OperatorDashboard() {
                             </div>
 
                             {/* SDG Impact */}
-                            <SectionHdr icon="🌱" right="live">SDG Impact</SectionHdr>
+                            <SectionHdr icon={<Leaf size={14}/>} right="live">SDG Impact</SectionHdr>
                             <div style={{ padding: '0 12px 16px', display: 'flex', flexDirection: 'column', gap: 7 }}>
                                 {[
-                                    { icon: '🏙️', label: 'CO₂ Saved Today', val: sdg ? `${sdg.sdg11.co2_saved_kg_today.toLocaleString()} kg` : '…', sdg: 11, c: '#f4a020' },
-                                    { icon: '⚡', label: 'Fuel Saved Today', val: sdg ? `${sdg.sdg7.fuel_saved_litres_today}L` : '…', sdg: 7, c: '#fcc30b' },
-                                    { icon: '💰', label: 'Cost Saved', val: sdg ? `₹${sdg.sdg7.cost_saved_inr_today.toLocaleString()}` : '…', sdg: 7, c: '#00a86b' },
-                                    { icon: '🔧', label: 'Routes Optimised', val: sdg ? sdg.sdg9.routes_optimised : '…', sdg: 9, c: '#fd6925' },
-                                    { icon: '🌍', label: 'Cars Off-Road Equiv.', val: sdg ? sdg.sdg13.cars_off_road_equivalent_today.toLocaleString() : '…', sdg: 13, c: '#3f7e44' },
-                                    { icon: '⏱️', label: 'On-Time %', val: sdg ? `${sdg.sdg11.on_time_percentage}%` : `${onTimePct}%`, sdg: 11, c: '#1a6cf5' },
+                                    { icon: <Building size={20}/>, label: 'CO₂ Saved Today', val: sdg ? `${sdg.sdg11.co2_saved_kg_today.toLocaleString()} kg` : '…', sdg: 11, c: '#f4a020' },
+                                    { icon: <Zap size={20}/>, label: 'Fuel Saved Today', val: sdg ? `${sdg.sdg7.fuel_saved_litres_today}L` : '…', sdg: 7, c: '#fcc30b' },
+                                    { icon: <Banknote size={20}/>, label: 'Cost Saved', val: sdg ? `₹${sdg.sdg7.cost_saved_inr_today.toLocaleString()}` : '…', sdg: 7, c: '#00a86b' },
+                                    { icon: <Wrench size={20}/>, label: 'Routes Optimised', val: sdg ? sdg.sdg9.routes_optimised : '…', sdg: 9, c: '#fd6925' },
+                                    { icon: <Globe size={20}/>, label: 'Cars Off-Road Equiv.', val: sdg ? sdg.sdg13.cars_off_road_equivalent_today.toLocaleString() : '…', sdg: 13, c: '#3f7e44' },
+                                    { icon: <Clock size={20}/>, label: 'On-Time %', val: sdg ? `${sdg.sdg11.on_time_percentage}%` : `${onTimePct}%`, sdg: 11, c: '#1a6cf5' },
                                 ].map((m, i) => (
                                     <div key={i} style={{ background: '#fff', borderRadius: 10, padding: '10px 13px', border: '1px solid rgba(15,40,90,0.08)', display: 'flex', alignItems: 'center', gap: 12 }}>
                                         <span style={{ fontSize: 20, flexShrink: 0 }}>{m.icon}</span>
@@ -744,12 +754,12 @@ export default function OperatorDashboard() {
                                 ))}
                                 {sdg && <div style={{ textAlign: 'center', fontSize: 9, color: '#c0ccdf', paddingTop: 4 }}>Updated {new Date(sdg.timestamp).toLocaleTimeString('en-IN')}</div>}
                             </div>
-                        </div>
+                        </motion.div>
                     )}
                     {/* ── OPTIMIZE tab ── */}
                     {tab === 'optimize' && tradeoffs && (
-                        <div style={{ flex: 1, overflowY: 'auto' }}>
-                            <SectionHdr icon="⚙️" right="Multi-Objective">Fleet Strategies</SectionHdr>
+                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} style={{ flex: 1, overflowY: 'auto' }}>
+                            <SectionHdr icon={<Settings size={14}/>} right="Multi-Objective">Fleet Strategies</SectionHdr>
                             <div style={{ padding: '0 12px 12px' }}>
                                 <div style={{ fontSize: 11, color: '#4a5f80', marginBottom: 12, lineHeight: 1.5, background: '#fff', padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(15,40,90,0.08)' }}>
                                     <strong>{tradeoffs.pending_recs} bottlenecks detected</strong> across {tradeoffs.total_routes} routes. Select an allocation strategy to prioritize either passenger wait time or fleet fuel cost.
@@ -822,9 +832,9 @@ export default function OperatorDashboard() {
                                     ))}
                                 </div>
                             </div>
-                        </div>
+                        </motion.div>
                     )}
-                </>}
+                </motion.div></AnimatePresence>}
             </div>
         </div>
     );

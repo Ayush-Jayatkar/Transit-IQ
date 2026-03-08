@@ -1,19 +1,21 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { MapContainer, TileLayer, Polyline, CircleMarker, Popup, useMap } from 'react-leaflet';
+import { motion, AnimatePresence } from 'framer-motion';
+import { PersonStanding, Bus, ArrowRightLeft, Train, Clock, Sunrise, Sunset, Trees, Compass, Search, Map as MapIcon, Zap, Leaf, Timer, Repeat, CreditCard, MapPin, AlertTriangle } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import api from '../api.js';
 
 /* ── helpers ─────────────────────────────────────────────────────────────── */
-const MODE_ICONS = { walk: '🚶', bus: '🚌', transfer: '🔄', metro: '🚇' };
+const MODE_ICONS = { walk: <PersonStanding size={16}/>, bus: <Bus size={16}/>, transfer: <ArrowRightLeft size={16}/>, metro: <Train size={16}/> };
 const MODE_COLORS = { walk: '#9aafc4', bus: '#1a6cf5', transfer: '#e88c00', metro: '#6c3acb' };
 const CROWD_COLORS = { low: '#00a86b', medium: '#e88c00', high: '#e53935' };
 const CROWD_LABELS = { low: 'Low', medium: 'Medium', high: 'High' };
 
 const TIME_PRESETS = [
-    { label: 'Now', hour: new Date().getHours(), icon: '🕐' },
-    { label: '8AM Peak', hour: 8, icon: '🌅' },
-    { label: '6PM Peak', hour: 18, icon: '🌆' },
-    { label: 'Weekend 11', hour: 11, icon: '🌳' },
+    { label: 'Now', hour: new Date().getHours(), icon: <Clock size={16}/> },
+    { label: '8AM Peak', hour: 8, icon: <Sunrise size={16}/> },
+    { label: '6PM Peak', hour: 18, icon: <Sunset size={16}/> },
+    { label: 'Weekend 11', hour: 11, icon: <Trees size={16}/> },
 ];
 
 function MapFlyTo({ center }) {
@@ -198,7 +200,7 @@ export default function PassengerApp() {
                     padding: '20px 20px 16px',
                     background: 'linear-gradient(135deg,#1a6cf5,#3b82f6)', color: '#fff',
                 }}>
-                    <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 4 }}>🧭 Transit Planner</div>
+                    <div style={{ fontSize: 18, fontWeight: 800, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}><Compass size={20}/> Transit Planner</div>
                     <div style={{ fontSize: 11, opacity: 0.85 }}>
                         Powered by RAPTOR Algorithm · Real PMPML Network
                     </div>
@@ -208,8 +210,8 @@ export default function PassengerApp() {
                 <div style={{ padding: 16, background: '#fff', borderBottom: '1px solid rgba(15,40,90,0.08)' }}>
                     {/* Origin */}
                     <div style={{ marginBottom: 10 }}>
-                        <label style={{ fontSize: 11, fontWeight: 700, color: '#4a5f80', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }}>
-                            🟢 From
+                        <label style={{ fontSize: 11, fontWeight: 700, color: '#4a5f80', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
+                            <MapPin size={12} color="#00a86b" /> From
                         </label>
                         <StopAutocomplete
                             value={origin}
@@ -223,14 +225,16 @@ export default function PassengerApp() {
                     <div style={{ textAlign: 'center', marginBottom: 10 }}>
                         <button onClick={() => { setOrigin(dest); setDest(origin); }} style={{
                             background: '#f0f4ff', border: '1px solid rgba(26,108,245,0.25)', borderRadius: 8,
-                            padding: '5px 14px', cursor: 'pointer', fontSize: 16, color: '#1a6cf5',
-                        }}>⇅</button>
+                            padding: '5px 14px', cursor: 'pointer', color: '#1a6cf5',
+                        }}>
+                            <ArrowRightLeft size={16} style={{ transform: 'rotate(90deg)' }} />
+                        </button>
                     </div>
 
                     {/* Destination */}
                     <div style={{ marginBottom: 14 }}>
-                        <label style={{ fontSize: 11, fontWeight: 700, color: '#4a5f80', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 }}>
-                            🔴 To
+                        <label style={{ fontSize: 11, fontWeight: 700, color: '#4a5f80', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 5 }}>
+                            <MapPin size={12} color="#e53935" /> To
                         </label>
                         <StopAutocomplete
                             value={dest}
@@ -242,8 +246,8 @@ export default function PassengerApp() {
 
                     {/* Time selector */}
                     <div style={{ marginBottom: 14 }}>
-                        <label style={{ fontSize: 11, fontWeight: 700, color: '#4a5f80', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 7 }}>
-                            ⏰ Departure Time
+                        <label style={{ fontSize: 11, fontWeight: 700, color: '#4a5f80', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'flex', alignItems: 'center', gap: 6, marginBottom: 7 }}>
+                            <Clock size={12} /> Departure Time
                         </label>
                         <div style={{ display: 'flex', gap: 6 }}>
                             {TIME_PRESETS.map((p, i) => (
@@ -253,8 +257,9 @@ export default function PassengerApp() {
                                     color: timePreset === i ? '#fff' : '#4a5f80',
                                     fontSize: 10, fontWeight: 700, fontFamily: 'Inter,sans-serif',
                                     transition: 'all 0.15s',
+                                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4
                                 }}>
-                                    {p.icon}<br />{p.label}
+                                    {p.icon}<span>{p.label}</span>
                                 </button>
                             ))}
                         </div>
@@ -266,21 +271,21 @@ export default function PassengerApp() {
                         background: loading ? '#c0ccdf' : 'linear-gradient(135deg,#1a6cf5,#3b82f6)',
                         color: '#fff', fontSize: 14, fontWeight: 800, fontFamily: 'Inter,sans-serif',
                         boxShadow: loading ? 'none' : '0 4px 16px rgba(26,108,245,0.4)',
-                        transition: 'all 0.2s',
+                        transition: 'all 0.2s', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
                     }}>
-                        {loading ? '🔄 Finding route…' : '🔍 Find Route'}
+                        {loading ? <><Repeat size={16} className="spin" /> Finding route…</> : <><Search size={16} /> Find Route</>}
                     </button>
 
                     {error && (
-                        <div style={{ marginTop: 10, padding: '10px 12px', background: '#fdecea', borderRadius: 8, fontSize: 12, color: '#e53935' }}>
-                            ⚠️ {error}
+                        <div style={{ marginTop: 10, padding: '10px 12px', background: '#fdecea', borderRadius: 8, fontSize: 12, color: '#e53935', display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <AlertTriangle size={14} /> {error}
                         </div>
                     )}
                 </div>
 
                 {/* Results */}
                 {result && (
-                    <div style={{ padding: '14px 16px', flex: 1 }}>
+                    <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} style={{ padding: '14px 16px', flex: 1 }}>
                         {/* Algorithm badge */}
                         <div style={{
                             marginBottom: 12, padding: '8px 12px',
@@ -289,27 +294,26 @@ export default function PassengerApp() {
                             display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                         }}>
                             <div>
-                                <div style={{ fontSize: 11, fontWeight: 800, color: '#1a6cf5' }}>
-                                    ⚡ {result.algorithm}
+                                <div style={{ fontSize: 11, fontWeight: 800, color: '#1a6cf5', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                    <Zap size={14} /> {result.algorithm}
                                 </div>
                                 <div style={{ fontSize: 9, color: '#9aafc4' }}>Round-Based Public Transit Optimized Router</div>
                             </div>
                             <div style={{ textAlign: 'right' }}>
-                                <div style={{ fontSize: 11, fontWeight: 700, color: '#00a86b' }}>
-                                    🍃 {result.carbon_saved_g}g CO₂ saved
+                                <div style={{ fontSize: 11, fontWeight: 700, color: '#00a86b', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                    <Leaf size={14} /> {result.carbon_saved_g}g CO₂ saved
                                 </div>
                             </div>
                         </div>
 
-                        {/* Summary strip */}
                         <div style={{
                             display: 'flex', gap: 8, marginBottom: 14,
                         }}>
                             {[
-                                { label: 'Total Time', value: `${result.total_time_min}m`, icon: '⏱', color: '#1a6cf5' },
-                                { label: 'Transfers', value: result.transfers, icon: '🔄', color: '#e88c00' },
-                                { label: 'Fare', value: `₹${result.fare_inr}`, icon: '💳', color: '#00a86b' },
-                                { label: 'Distance', value: `${result.distance_km}km`, icon: '📍', color: '#6c3acb' },
+                                { label: 'Total Time', value: `${result.total_time_min}m`, icon: <Timer size={16} />, color: '#1a6cf5' },
+                                { label: 'Transfers', value: result.transfers, icon: <Repeat size={16} />, color: '#e88c00' },
+                                { label: 'Fare', value: `₹${result.fare_inr}`, icon: <CreditCard size={16} />, color: '#00a86b' },
+                                { label: 'Distance', value: `${result.distance_km}km`, icon: <MapPin size={16} />, color: '#6c3acb' },
                             ].map(m => (
                                 <div key={m.label} style={{
                                     flex: 1, textAlign: 'center', background: '#fff',
@@ -317,7 +321,7 @@ export default function PassengerApp() {
                                     border: `1px solid ${m.color}22`,
                                     boxShadow: '0 1px 4px rgba(15,40,90,0.06)',
                                 }}>
-                                    <div style={{ fontSize: 16 }}>{m.icon}</div>
+                                    <div style={{ display: 'flex', justifyContent: 'center', color: m.color, marginBottom: 4 }}>{m.icon}</div>
                                     <div style={{ fontSize: 15, fontWeight: 900, color: m.color, fontFamily: 'monospace' }}>{m.value}</div>
                                     <div style={{ fontSize: 9, color: '#9aafc4', textTransform: 'uppercase' }}>{m.label}</div>
                                 </div>
@@ -344,18 +348,20 @@ export default function PassengerApp() {
                         </div>
 
                         {/* Step-by-step */}
-                        <div style={{ fontSize: 11, fontWeight: 800, color: '#0d1b3e', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>
-                            🗺️ Step-by-Step Route
+                        <div style={{ fontSize: 11, fontWeight: 800, color: '#0d1b3e', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <MapIcon size={14}/> Step-by-Step Route
                         </div>
                         {(result.steps || []).map((step, i) => (
-                            <StepCard key={i} step={step} color="#1a6cf5" />
+                            <motion.div key={i} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.1 }}>
+                                <StepCard step={step} color="#1a6cf5" />
+                            </motion.div>
                         ))}
-                    </div>
+                    </motion.div>
                 )}
 
                 {!result && !loading && (
                     <div style={{ padding: 24, textAlign: 'center', color: '#9aafc4' }}>
-                        <div style={{ fontSize: 40, marginBottom: 12 }}>🗺️</div>
+                        <div style={{ marginBottom: 12, display: 'flex', justifyContent: 'center' }}><MapIcon size={40} color="#9aafc4"/></div>
                         <div style={{ fontSize: 13, fontWeight: 600 }}>Enter origin & destination</div>
                         <div style={{ fontSize: 11, marginTop: 6 }}>and press Find Route to get your optimized transit plan</div>
                     </div>

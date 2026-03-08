@@ -1,0 +1,29 @@
+
+> frontend@0.0.0 build
+> vite build
+
+[36mvite v7.3.1 [32mbuilding client environment for production...[36m[39m
+transforming...
+[32m✓[39m 2822 modules transformed.
+[31m✗[39m Build failed in 17.30s
+[31merror during build:
+[31msrc/pages/PassengerApp.jsx (4:9): "Walk" is not exported by "node_modules/lucide-react/dist/esm/lucide-react.js", imported by "src/pages/PassengerApp.jsx".[31m
+file: [36mD:/AMD/Transit-IQ/frontend/src/pages/PassengerApp.jsx:4:9[31m
+[33m
+2: import { MapContainer, TileLayer, Polyline, CircleMarker, Popup, useMap } from 'react-leaflet';
+3: import { motion, AnimatePresence } from 'framer-motion';
+4: import { Walk, Bus, ArrowRightLeft, Train, Clock, Sunrise, Sunset, Trees, Compass, Search } from 'lucide-react';
+            ^
+5: import 'leaflet/dist/leaflet.css';
+6: import api from '../api.js';
+[31m
+    at getRollupError (file:///D:/AMD/Transit-IQ/frontend/node_modules/rollup/dist/es/shared/parseAst.js:402:41)
+    at error (file:///D:/AMD/Transit-IQ/frontend/node_modules/rollup/dist/es/shared/parseAst.js:398:42)
+    at Module.error (file:///D:/AMD/Transit-IQ/frontend/node_modules/rollup/dist/es/shared/node-entry.js:17040:16)
+    at Module.traceVariable (file:///D:/AMD/Transit-IQ/frontend/node_modules/rollup/dist/es/shared/node-entry.js:17452:29)
+    at ModuleScope.findVariable (file:///D:/AMD/Transit-IQ/frontend/node_modules/rollup/dist/es/shared/node-entry.js:15070:39)
+    at Identifier.bind (file:///D:/AMD/Transit-IQ/frontend/node_modules/rollup/dist/es/shared/node-entry.js:5447:40)
+    at CallExpression.bind (file:///D:/AMD/Transit-IQ/frontend/node_modules/rollup/dist/es/shared/node-entry.js:2825:28)
+    at CallExpression.bind (file:///D:/AMD/Transit-IQ/frontend/node_modules/rollup/dist/es/shared/node-entry.js:12179:15)
+    at Property.bind (file:///D:/AMD/Transit-IQ/frontend/node_modules/rollup/dist/es/shared/node-entry.js:2829:23)
+    at ObjectExpression.bind (file:///D:/AMD/Transit-IQ/frontend/node_modules/rollup/dist/es/shared/node-entry.js:2825:28)[39m
