@@ -329,4 +329,4 @@ Double-click `start_backend.bat` in one terminal, and `start_frontend.bat` in an
 
 ## 👥 Team
 
-**PCCOE BlueBit** — Built for the BlueBit Hackathon, March 2026
+**Sync** — Built for the BlueBit Hackathon, March 2026
