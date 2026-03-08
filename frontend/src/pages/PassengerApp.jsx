@@ -76,7 +76,7 @@ function StepCard({ step, color }) {
                         <div style={{ fontSize: 10, color: '#4a5f80', width: '100%', marginBottom: 2 }}>Upcoming Departures (Est. Fare: ₹{step.fare || 15}):</div>
                         {step.next_departures.map((dep, idx) => (
                             <div key={idx} style={{ background: '#f0f4ff', padding: '4px 8px', borderRadius: 6, fontSize: 10, color: '#1a6cf5', fontWeight: 600 }}>
-                                {dep.time} (in {dep.in_min}m)
+                                🚌 {dep.bus_no} • {dep.time} (in {dep.in_min}m)
                             </div>
                         ))}
                     </div>
