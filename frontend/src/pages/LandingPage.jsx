@@ -203,18 +203,6 @@ export default function LandingPage() {
                         </div>
                     </div>
 
-                    {/* Tech Stack Col */}
-                    <div style={{ flex: '1 1 300px' }}>
-                        <h4 style={{ fontSize: 14, fontWeight: 700, marginBottom: 20, color: '#fff' }}>100% Free Open-Source Stack</h4>
-                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                            {stack.map(t => (
-                                <span key={t} style={{ 
-                                    background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
-                                    color: '#b3c4d9', fontSize: 11, padding: '6px 14px', borderRadius: 99
-                                }}>{t}</span>
-                            ))}
-                        </div>
-                    </div>
 
                     {/* Platform Col */}
                     <div style={{ flex: '1 1 150px' }}>
