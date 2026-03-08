@@ -314,7 +314,6 @@ export default function OperatorDashboard() {
                         </div>
                     )}
                 </>}
-                <CollapseBtn side="left" collapsed={!leftOpen} onClick={() => setLeftOpen(o => !o)} />
             </div>
 
             {/* ══════ CENTER MAP ══════ */}
