@@ -21,6 +21,7 @@ Graph structure used here:
 
 import math
 import heapq
+import random
 from typing import Dict, List, Optional, Tuple
 from functools import lru_cache
 
@@ -381,7 +382,11 @@ def _reconstruct_path(
             board_t = prev_arrive_t + wait_min
             
             departures = [
-                {"in_min": wait_min + i * freq_min, "time": _fmt_time(board_t + i * freq_min)}
+                {
+                    "in_min": wait_min + i * freq_min,
+                    "time": _fmt_time(board_t + i * freq_min),
+                    "bus_no": f"MH-12-{random.choice(['FC','RN','CW','KP'])}-{random.randint(1000, 9999)}"
+                }
                 for i in range(3)
             ]
             fare = max(10, min(50, int(duration * 1.5)))
