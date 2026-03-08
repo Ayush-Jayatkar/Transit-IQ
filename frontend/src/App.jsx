@@ -4,6 +4,7 @@ import { Satellite, Bus } from 'lucide-react';
 import LandingPage from './pages/LandingPage.jsx';
 import OperatorDashboard from './pages/OperatorDashboard.jsx';
 import PassengerApp from './pages/PassengerApp.jsx';
+import ApiDocs from './pages/ApiDocs.jsx';
 
 export default function App() {
   const loc = useLocation();
@@ -85,6 +86,7 @@ export default function App() {
       <Route path="/" element={<LandingPage />} />
       <Route path="/operator" element={<OperatorDashboard />} />
       <Route path="/passenger" element={<PassengerApp />} />
+      <Route path="/api-docs" element={<ApiDocs />} />
     </Routes>
   );
 }

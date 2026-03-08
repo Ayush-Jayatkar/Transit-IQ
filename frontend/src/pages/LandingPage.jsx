@@ -280,11 +280,27 @@ export default function LandingPage() {
                     {/* Platform Col */}
                     <div style={{ flex: '1 1 150px' }}>
                         <h4 style={{ fontSize: 14, fontWeight: 700, marginBottom: 20, color: '#fff' }}>Platform</h4>
-                        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                            <li><Link to="/operator" style={{ color: '#9aafc4', fontSize: 13, textDecoration: 'none', transition: 'color 0.2s' }} onMouseEnter={e => e.currentTarget.style.color = '#fff'} onMouseLeave={e => e.currentTarget.style.color = '#9aafc4'}>Operator Dashboard</Link></li>
-                            <li><Link to="/passenger" style={{ color: '#9aafc4', fontSize: 13, textDecoration: 'none', transition: 'color 0.2s' }} onMouseEnter={e => e.currentTarget.style.color = '#fff'} onMouseLeave={e => e.currentTarget.style.color = '#9aafc4'}>Passenger App</Link></li>
-                            <li><a href="#" style={{ color: '#9aafc4', fontSize: 13, textDecoration: 'none', transition: 'color 0.2s' }} onMouseEnter={e => e.currentTarget.style.color = '#fff'} onMouseLeave={e => e.currentTarget.style.color = '#9aafc4'}>API Documentation</a></li>
-                        </ul>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            {['Operator Dashboard', 'Passenger App'].map(l => (
+                                <Link key={l} to={l.includes('Operator') ? '/operator' : '/passenger'} style={{ color: '#b3c4d9', textDecoration: 'none', fontSize: 13, transition: 'color 0.2s', width: 'fit-content' }} onMouseEnter={e => e.target.style.color = '#fff'} onMouseLeave={e => e.target.style.color = '#b3c4d9'}>
+                                    {l}
+                                </Link>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* Developers Col */}
+                    <div style={{ flex: '1 1 150px' }}>
+                        <h4 style={{ fontSize: 14, fontWeight: 700, marginBottom: 20, color: '#fff' }}>Developers</h4>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                            <Link to="/api-docs" style={{ color: '#b3c4d9', textDecoration: 'none', fontSize: 13, transition: 'color 0.2s', width: 'fit-content' }} onMouseEnter={e => e.target.style.color = '#fff'} onMouseLeave={e => e.target.style.color = '#b3c4d9'}>
+                                API Documentation
+                            </Link>
+                            <a href="https://github.com/Ayush-Jayatkar/Transit-IQ.git" target="_blank" rel="noopener noreferrer" style={{ color: '#b3c4d9', textDecoration: 'none', fontSize: 13, transition: 'color 0.2s', width: 'fit-content' }} onMouseEnter={e => e.target.style.color = '#fff'} onMouseLeave={e => e.target.style.color = '#b3c4d9'}>
+                                Git-Hub Repo
+                            </a>
+                            
+                        </div>
                     </div>
                 </div>
 
