@@ -202,9 +202,13 @@ def raptor_search(
             if t_board == INF:
                 continue
 
+            # Add average wait time (half of frequency) for boarding
+            freq_min = route_obj.get("frequency_min", 15)
+            avg_wait = freq_min / 2.0
+
             # Scan stops from board_idx onwards
             prev_stop = stops_in_route[board_idx]
-            t_current = t_board
+            t_current = t_board + avg_wait
 
             for i in range(board_idx + 1, len(stops_in_route)):
                 cur_stop = stops_in_route[i]
@@ -250,10 +254,9 @@ def raptor_search(
 
                 # Check if a later stop on this route allows earlier boarding
                 # (someone transferred here with a better time)
-                if tau[k-1].get(cur_name, INF) < t_current:
-                    t_current     = tau[k-1][cur_name]
+                if tau[k-1].get(cur_name, INF) + avg_wait < t_current:
+                    t_current     = tau[k-1][cur_name] + avg_wait
                     boarding_stop_name = cur_name
-                    t_board       = t_current
 
         # ── Transfer step: walking between nearby stops ─────────────────────
         transfer_improvements = {}
@@ -354,93 +357,40 @@ def _reconstruct_path(
 
     chain.reverse()
 
-    # Walk from origin to first stop
-    if chain:
-        first_board = chain[0][0]
-        if first_board != origin_name:
-            orig_data  = stop_index.get(origin_name, {})
-            first_data = stop_index.get(first_board, {})
-            if orig_data and first_data:
-                d = _haversine(orig_data["lat"], orig_data["lon"], first_data["lat"], first_data["lon"])
-                steps.append({
-                    "step":         1,
-                    "mode":         "walk",
-                    "description":  f"Walk to {first_board}",
-                    "from":         origin_name,
-                    "to":           first_board,
-                    "duration_min": round(_walk_time_min(d)),
-                    "distance_m":   round(d * 1000),
-                })
-
-    step_num = len(steps) + 1
-    prev_route_id = None
-    segment_start = None
-    segment_start_time = dep_min
+    step_num = 1
+    prev_arrive_t = dep_min
 
     for (from_s, to_s, r_info, arrive_t) in chain:
         rid = r_info["route_id"]
+        duration = max(1, round(arrive_t - prev_arrive_t))
+        
         if rid == "walk":
-            if prev_route_id and prev_route_id != "walk":
-                # End previous bus segment
-                pass
+            dist = int(r_info["route_name"].replace("Walk ", "").replace("m", "")) if "Walk" in r_info["route_name"] else 0
             steps.append({
                 "step":         step_num,
                 "mode":         "transfer",
                 "description":  r_info["route_name"],
                 "from":         from_s,
                 "to":           to_s,
-                "duration_min": TRANSFER_PENALTY,
+                "duration_min": duration,
+                "distance_m":   dist,
             })
-            step_num    += 1
-            prev_route_id = "walk"
         else:
-            if rid != prev_route_id:
-                # Start new bus segment
-                if prev_route_id and prev_route_id != "walk":
-                    pass
-                steps.append({
-                    "step":         step_num,
-                    "mode":         "bus",
-                    "description":  f"Take {r_info['route_name']}",
-                    "route":        r_info["route_name"],
-                    "route_id":     rid,
-                    "route_color":  r_info["color"],
-                    "from":         from_s,
-                    "to":           to_s,
-                    "duration_min": max(3, round(arrive_t - (segment_start_time or dep_min))),
-                    "crowd_level":  "medium",
-                    "crowd_pct":    65,
-                })
-                step_num += 1
-                segment_start_time = arrive_t
-            else:
-                # Extend last bus step
-                if steps and steps[-1]["mode"] == "bus":
-                    steps[-1]["to"]           = to_s
-                    steps[-1]["duration_min"] = max(3, round(arrive_t - dep_min))
-            prev_route_id = rid
-
-    # Walk from last stop to destination
-    if chain:
-        last_alight = chain[-1][1]
-        if last_alight != dest_name:
-            last_data = stop_index.get(last_alight, {})
-            dest_data = stop_index.get(dest_name, {})
-            if last_data and dest_data:
-                d = _haversine(last_data["lat"], last_data["lon"], dest_data["lat"], dest_data["lon"])
-                steps.append({
-                    "step":         step_num,
-                    "mode":         "walk",
-                    "description":  f"Walk to {dest_name}",
-                    "from":         last_alight,
-                    "to":           dest_name,
-                    "duration_min": round(_walk_time_min(d)),
-                    "distance_m":   round(d * 1000),
-                })
-
-    # Re-number steps cleanly
-    for i, s in enumerate(steps):
-        s["step"] = i + 1
+            steps.append({
+                "step":         step_num,
+                "mode":         "bus",
+                "description":  f"Take {r_info['route_name']}",
+                "route":        r_info["route_name"],
+                "route_id":     rid,
+                "route_color":  r_info["color"],
+                "from":         from_s,
+                "to":           to_s,
+                "duration_min": duration,
+                "crowd_level":  "medium",
+                "crowd_pct":    65,
+            })
+        step_num += 1
+        prev_arrive_t = arrive_t
 
     return steps
 
