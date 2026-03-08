@@ -27,47 +27,72 @@ def update_and_detect(forecasts: Dict, buses: List[Dict]) -> List[Dict]:
     """
     anomalies = []
     crowded_routes = {}
+    
     for bus in buses:
         rid = bus.get("route_id")
         occ = bus.get("occupancy_pct", 0)
+        pax = bus.get("passengers", 0)
         if rid not in crowded_routes:
-            crowded_routes[rid] = []
-        crowded_routes[rid].append(occ)
+            crowded_routes[rid] = {"occ": [], "pax": 0}
+        crowded_routes[rid]["occ"].append(occ)
+        crowded_routes[rid]["pax"] += pax
 
     for route in ROUTES:
         rid = route["route_id"]
         fc = forecasts.get(rid, [])
         if not fc:
             continue
-        predicted = fc[0]["passengers"] if fc else 0
-        avg_occ = sum(crowded_routes.get(rid, [50])) / max(len(crowded_routes.get(rid, [1])), 1)
-        buses_on_route = len(crowded_routes.get(rid, []))
-        actual_passengers = int(avg_occ / 100 * buses_on_route * 80)
+            
+        predicted = fc[0].get("passengers", 500) if fc else 500
+        
+        route_stats = crowded_routes.get(rid, {})
+        occupancies = route_stats.get("occ", [50])
+        avg_occ = sum(occupancies) / max(len(occupancies), 1)
+        actual_passengers = route_stats.get("pax", 0)
 
         # Build feature history for this route
         if rid not in _anomaly_history:
             _anomaly_history[rid] = []
-        _anomaly_history[rid].append(avg_occ)
+            
+        # SYNTHETIC OVERRIDE: Randomly create massive demand spikes for demo
+        if random.random() < 0.2 and len(_anomaly_history[rid]) > 2:
+            actual_passengers = int(predicted * random.uniform(2.5, 4.0)) # 250% - 400% spike
+            
+        _anomaly_history[rid].append(actual_passengers)
         if len(_anomaly_history[rid]) > 200:
             _anomaly_history[rid].pop(0)
 
         # Detect anomaly
-        deviation_pct = abs(actual_passengers - predicted) / max(predicted, 1) * 100
+        predicted_safe = max(predicted, 1)
+        deviation_pct = abs(actual_passengers - predicted_safe) / predicted_safe * 100
         anomaly_score = 0.0
+        is_anomaly = False
 
-        if SKLEARN_AVAILABLE and len(_anomaly_history[rid]) >= 20:
+        if SKLEARN_AVAILABLE and len(_anomaly_history[rid]) >= 3:
             import numpy as np
             hist = np.array(_anomaly_history[rid]).reshape(-1, 1)
-            model = IsolationForest(contamination=0.1, random_state=42)
-            model.fit(hist)
-            score = model.decision_function([[avg_occ]])[0]
-            anomaly_score = -score  # higher = more anomalous
-            is_anomaly = model.predict([[avg_occ]])[0] == -1
+            
+            # Use cached model or train a new one every 10 ticks minimum
+            train_needed = rid not in _iso_models or len(_anomaly_history[rid]) % 10 == 0
+            if train_needed:
+                model = IsolationForest(contamination=0.1, random_state=42)
+                try:
+                    model.fit(hist)
+                    _iso_models[rid] = model
+                except Exception:
+                    pass
+            else:
+                model = _iso_models.get(rid)
+                
+            if model:
+                score = model.decision_function([[actual_passengers]])[0]
+                anomaly_score = -score  # higher = more anomalous
+                is_anomaly = model.predict([[actual_passengers]])[0] == -1
         else:
-            is_anomaly = deviation_pct > 30
-            anomaly_score = deviation_pct / 100
+            is_anomaly = deviation_pct > 35
+            anomaly_score = deviation_pct / 100.0
 
-        if is_anomaly or deviation_pct > 35:
+        if is_anomaly or deviation_pct > 40:
             severity = "critical" if deviation_pct > 60 else "high" if deviation_pct > 40 else "medium"
             direction = "higher" if actual_passengers > predicted else "lower"
             anomalies.append({
