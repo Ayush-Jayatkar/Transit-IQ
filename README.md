@@ -19,12 +19,13 @@ Transit-IQ is a fully closed-loop, production-grade intelligent transit manageme
 > **Operator Command Center Dashboard**
 
 <!-- Add screenshot of Operator Dashboard here -->
-![Operator Dashboard]("<img width="2559" height="1304" alt="image" src="https://github.com/user-attachments/assets/8d0ee70c-c495-412c-93aa-df2ab78d9c70" />")
+![Operator Dashboard]<img width="2559" height="1304" alt="image" src="https://github.com/user-attachments/assets/8d0ee70c-c495-412c-93aa-df2ab78d9c70" />
 
 > **Demand Heatmap on Live Map**
 
 <!-- Add screenshot of Demand Heatmap here -->
-![Demand Heatmap](./docs/screenshots/demand_heatmap.png)
+![Demand Heatmap]![Uploading image.png…]()
+
 
 > **Multi-Objective Fleet Optimization Panel**
 
