@@ -19,7 +19,7 @@ Transit-IQ is a fully closed-loop, production-grade intelligent transit manageme
 > **Operator Command Center Dashboard**
 
 <!-- Add screenshot of Operator Dashboard here -->
-### 1. Live Fleet Tracking
+### Live Fleet Tracking
 Comprehensive PMPML operator monitoring view showing all 312 active buses on an interactive Leaflet map. Operators can track every route's real-time status (On Time, Crowded, Delayed, Breakdown), monitor critical fleet metrics (buses crowded >85%, delayed >5min, breakdowns), inspect per-route traffic load distribution, and scroll through a live bus list sorted by speed and next stop — all in one unified command screen.
 
 <img width="2559" height="1304" alt="image" src="https://github.com/user-attachments/assets/8d0ee70c-c495-412c-93aa-df2ab78d9c70" />
@@ -27,15 +27,18 @@ Comprehensive PMPML operator monitoring view showing all 312 active buses on an 
 
 > **Demand Heatmap on Live Map**
 
+An operator-side heatmap view overlaid on the Pune city map, highlighting heavily-trafficked routes in vivid red clusters. Dispatchers can identify demand hotspots in real-time — major transit corridors like the central Pune hub light up intensely during peak hours — enabling data-driven decisions on where to deploy additional buses before congestion peaks.
+
 <!-- Add screenshot of Demand Heatmap here -->
 <img width="2559" height="1307" alt="image" src="https://github.com/user-attachments/assets/a796cb6f-924d-4037-b38a-e2e3d9fd1dff" />
 
 
 > **Passenger App — RAPTOR Journey Planner**
 
+The rider-facing journey planning dashboard where users select a source and destination, choose a time preset (Now, 8AM Peak, 6PM Peak, Weekend 11), and hit "Find Route." The RAPTOR algorithm instantly calculates the optimal path — showing total time, number of transfers, ₹ fare, and distance — along with precise Depart → Arrive times. The step-by-step route breakdown further lists upcoming buses with their real license plates (e.g. MH-12-FC-4905) and estimated wait times, so riders know exactly which physical bus to board.
+
 <!-- Add screenshot of Passenger App here -->
 <img width="2559" height="1306" alt="image" src="https://github.com/user-attachments/assets/7eb9a845-b440-4258-96f0-26718cff58a2" />
-
 
 
 ---
