@@ -29,11 +29,6 @@ A real-time command center for operators to monitor PMPML bus locations, route s
 ![Demand Heatmap]![Uploading image.png…]()
 
 
-> **Multi-Objective Fleet Optimization Panel**
-
-<!-- Add screenshot of Optimize Tab here -->
-![Optimization Panel](./docs/screenshots/optimize_panel.png)
-
 > **Passenger App — RAPTOR Journey Planner**
 
 <!-- Add screenshot of Passenger App here -->
