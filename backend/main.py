@@ -18,6 +18,7 @@ Improvements over v1:
 import os, json, random, asyncio, threading, math
 from datetime import datetime, timedelta
 from typing import Optional
+from pydantic import BaseModel
 import numpy as np
 
 from fastapi import FastAPI, BackgroundTasks, HTTPException
@@ -36,6 +37,7 @@ from models.route_planner      import (
     raptor_search, build_stop_index, compute_stop_demand,
     get_timeofday_profile, compute_tradeoffs
 )
+from models.bunching_detector  import detect_bunching, haversine
 
 _stop_index = {}   # populated at startup
 
@@ -61,6 +63,7 @@ _recommendations = []
 _alerts         = []
 _metrics        = {}
 _rec_counter    = 0
+_issue_reports  = []   # Round 3: passenger-submitted issues
 
 _lock = threading.Lock()
 _initialized = False
@@ -619,6 +622,291 @@ def api_journey(origin: str = "Shivajinagar", destination: str = "Hinjewadi Phas
         "carbon_saved_g":       carbon_saved,
         "steps":                steps,
         "route_used":           route["route_name"],
+    }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#   ROUND 3 — FEATURE A2: BUS BUNCHING DETECTOR
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/api/bunching")
+def api_bunching():
+    """
+    Detect bus bunching events: pairs of buses on the same route within 600 m.
+    Returns list of events with position, severity, and recommended action.
+    """
+    with _lock:
+        return detect_bunching(_buses, threshold_m=600)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#   ROUND 3 — FEATURE A4: SCENARIO SIMULATOR
+# ══════════════════════════════════════════════════════════════════════════════
+
+SCENARIOS = {
+    "ganpati": {
+        "name": "Ganpati Festival",
+        "emoji": "🐘",
+        "demand_multiplier": 3.2,
+        "peak_hours": "06:00 – 23:00",
+        "description": "Ganesh Chaturthi draws 5–7 lakh visitors citywide. Shivajinagar, Kasba, Tambdi Jogeshwari routes surge 3×.",
+        "source": "PMC Traffic Cell Report 2023",
+    },
+    "rain": {
+        "name": "Heavy Rain Day",
+        "emoji": "🌧️",
+        "demand_multiplier": 1.85,
+        "peak_hours": "07:00 – 21:00",
+        "description": "Monsoon rain drives 85% modal shift from 2-wheelers to buses. Average speed drops 35%.",
+        "source": "IMD Pune / PMPML ops data",
+    },
+    "ipl": {
+        "name": "IPL Match Day",
+        "emoji": "🏏",
+        "demand_multiplier": 2.1,
+        "peak_hours": "17:00 – 00:00",
+        "description": "MCA Stadium match day brings 40,000 fans. Gahunje/Wakad routes see 2× surge post-match.",
+        "source": "PMPML event planning report 2024",
+    },
+    "monday": {
+        "name": "Monday Rush",
+        "emoji": "📅",
+        "demand_multiplier": 1.45,
+        "peak_hours": "07:30 – 10:30",
+        "description": "First-day-of-week peak. IT corridor and university routes see 45% above normal load.",
+        "source": "PMPML ridership analytics",
+    },
+}
+
+@app.get("/api/scenario/{scenario_id}")
+def api_scenario(scenario_id: str):
+    """
+    Simulate a Pune-specific demand scenario.
+    Returns projected demand surge, extra buses needed, cost impact, and readiness score.
+    """
+    sc = SCENARIOS.get(scenario_id)
+    if not sc:
+        raise HTTPException(404, f"Unknown scenario: {scenario_id}. Valid: {list(SCENARIOS.keys())}")
+
+    mul = sc["demand_multiplier"]
+    total = len(_buses)
+    current_fleet = total
+
+    # Routes most affected — pick top 6 by base demand
+    affected_routes = []
+    for r in sorted(_routes, key=lambda x: x.get("base_demand", 0), reverse=True)[:6]:
+        fc = _forecasts.get(r["route_id"], [])
+        cur_pax = fc[0]["passengers"] if fc else r.get("base_demand", 300)
+        surge_pax = int(cur_pax * mul)
+        buses_for_route = buses.count(r["route_id"]) if False else max(1, int(surge_pax / 80))
+        affected_routes.append({
+            "route_id": r["route_id"],
+            "route_name": r["route_name"],
+            "current_pax": cur_pax,
+            "projected_pax": surge_pax,
+            "surge_pct": round((mul - 1) * 100),
+        })
+
+    extra_buses = max(10, int(total * (mul - 1) * 0.6))
+    cost_per_bus_day = 8500  # ₹8,500/bus/day PMPML operational cost
+    cost_inr = extra_buses * cost_per_bus_day
+
+    # Readiness score: how well prepared current fleet is
+    breakdown_pct = sum(1 for b in _buses if b.get("status") == "breakdown") / max(total, 1)
+    readiness = max(20, round((1 - breakdown_pct) * 100 - (mul - 1) * 20))
+
+    return {
+        "scenario_id": scenario_id,
+        "name": sc["name"],
+        "emoji": sc["emoji"],
+        "description": sc["description"],
+        "source": sc["source"],
+        "peak_hours": sc["peak_hours"],
+        "demand_surge_pct": round((mul - 1) * 100),
+        "demand_multiplier": mul,
+        "extra_buses_needed": extra_buses,
+        "cost_inr": cost_inr,
+        "cost_display": f"₹{cost_inr:,}",
+        "readiness_score": readiness,
+        "readiness_label": "High" if readiness >= 70 else "Medium" if readiness >= 40 else "Low",
+        "current_fleet": current_fleet,
+        "affected_routes": affected_routes[:5],
+        "timestamp": datetime.now().isoformat(),
+    }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#   ROUND 3 — FEATURE A5: PASSENGER ISSUE REPORTER
+# ══════════════════════════════════════════════════════════════════════════════
+
+class IssueReport(BaseModel):
+    lat: float
+    lon: float
+    type: str           # Overcrowded | Bus Not Arrived | Breakdown Seen | Safety Issue
+    route_id: Optional[str] = None
+    description: Optional[str] = ""
+
+@app.post("/api/issues")
+def submit_issue(report: IssueReport):
+    """Passenger submits a live issue. Appears as orange marker on Operator Dashboard."""
+    global _issue_reports
+    issue = {
+        "id": f"ISS-{len(_issue_reports)+1:04d}",
+        "lat": report.lat,
+        "lon": report.lon,
+        "type": report.type,
+        "route_id": report.route_id,
+        "description": report.description,
+        "timestamp": datetime.now().isoformat(),
+        "time_display": datetime.now().strftime("%H:%M"),
+    }
+    with _lock:
+        _issue_reports.insert(0, issue)
+        _issue_reports = _issue_reports[:100]  # keep last 100
+    return {"status": "received", "id": issue["id"]}
+
+@app.get("/api/issues")
+def get_issues():
+    """Returns last 50 passenger-reported issues (newest first)."""
+    return _issue_reports[:50]
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#   ROUND 3 — FEATURE B1: PMPML REVENUE LOSS COUNTER
+# ══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/api/revenue-loss")
+def api_revenue_loss():
+    """
+    Real-time PMPML revenue loss calculator.
+    PMPML earns ~₹2.75 crore/day. Each breakdown bus loses ~₹12,500/day.
+    If breakdowns reduced 30%, saves ₹8.25 crore/year.
+    Source: CAG Report on PMPML 2022-23, Pune Mirror.
+    """
+    breakdown_buses = sum(1 for b in _buses if b.get("status") == "breakdown")
+    loss_per_bus_per_day = 12_500          # ₹12,500/bus/day
+    loss_per_bus_per_sec = loss_per_bus_per_day / 86_400
+
+    # How far into today are we?
+    now = datetime.now()
+    seconds_elapsed_today = now.hour * 3600 + now.minute * 60 + now.second
+    loss_today = round(breakdown_buses * loss_per_bus_per_day * seconds_elapsed_today / 86_400)
+
+    annual_loss_total    = breakdown_buses * loss_per_bus_per_day * 365
+    annual_saving_30pct  = round(annual_loss_total * 0.30 / 1e7, 2)  # crore
+
+    return {
+        "breakdown_buses": breakdown_buses,
+        "loss_today_inr": loss_today,
+        "loss_per_second_inr": round(breakdown_buses * loss_per_bus_per_sec, 2),
+        "annual_loss_inr": annual_loss_total,
+        "annual_saving_30pct_crore": annual_saving_30pct,
+        "saving_display": f"₹{annual_saving_30pct} crore/year",
+        "source": "CAG Report PMPML 2022-23 · PMC Fleet Audit",
+        "timestamp": now.isoformat(),
+    }
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+#   ROUND 3 — FEATURE B4: METRO FEEDER DESERT MAP
+# ══════════════════════════════════════════════════════════════════════════════
+
+PUNE_METRO_STATIONS = [
+    # Line 1 (Purple — PCMC to Swargate)
+    {"name": "PCMC",             "lat": 18.6278, "lon": 73.8009, "line": "Purple"},
+    {"name": "Sant Tukaram Nagar","lat": 18.6198, "lon": 73.8045, "line": "Purple"},
+    {"name": "Nashik Phata",      "lat": 18.6121, "lon": 73.8070, "line": "Purple"},
+    {"name": "Kasarwadi",         "lat": 18.6016, "lon": 73.8088, "line": "Purple"},
+    {"name": "Phugewadi",         "lat": 18.5927, "lon": 73.8098, "line": "Purple"},
+    {"name": "Dapodi",            "lat": 18.5847, "lon": 73.8113, "line": "Purple"},
+    {"name": "Bopodi",            "lat": 18.5764, "lon": 73.8432, "line": "Purple"},
+    {"name": "Khadki",            "lat": 18.5667, "lon": 73.8481, "line": "Purple"},
+    {"name": "Range Hills",       "lat": 18.5596, "lon": 73.8498, "line": "Purple"},
+    {"name": "Shivajinagar",      "lat": 18.5362, "lon": 73.8481, "line": "Purple"},
+    {"name": "Civil Court",       "lat": 18.5197, "lon": 73.8553, "line": "Purple"},
+    {"name": "Budhwar Peth",      "lat": 18.5153, "lon": 73.8551, "line": "Purple"},
+    {"name": "Mandai",            "lat": 18.5103, "lon": 73.8565, "line": "Purple"},
+    {"name": "Swargate",          "lat": 18.5022, "lon": 73.8578, "line": "Purple"},
+    # Line 2 (Aqua — Vanaz to Ramwadi)
+    {"name": "Vanaz",             "lat": 18.5072, "lon": 73.8097, "line": "Aqua"},
+    {"name": "Anand Nagar",       "lat": 18.5098, "lon": 73.8152, "line": "Aqua"},
+    {"name": "Ideal Colony",      "lat": 18.5121, "lon": 73.8226, "line": "Aqua"},
+    {"name": "Nal Stop",          "lat": 18.5145, "lon": 73.8307, "line": "Aqua"},
+    {"name": "Garware College",   "lat": 18.5196, "lon": 73.8390, "line": "Aqua"},
+    {"name": "Deccan Gymkhana",   "lat": 18.5209, "lon": 73.8423, "line": "Aqua"},
+    {"name": "Chhatrapati Sambhaji","lat":18.5232,"lon": 73.8457, "line": "Aqua"},
+    {"name": "PMC",               "lat": 18.5200, "lon": 73.8552, "line": "Aqua"},
+    {"name": "Mangalwar Peth",    "lat": 18.5226, "lon": 73.8688, "line": "Aqua"},
+    {"name": "Pune Railway Station","lat":18.5272, "lon": 73.8748, "line": "Aqua"},
+    {"name": "Ruby Hall Clinic",  "lat": 18.5304, "lon": 73.8815, "line": "Aqua"},
+    {"name": "Bund Garden",       "lat": 18.5348, "lon": 73.8882, "line": "Aqua"},
+    {"name": "Yerwada",           "lat": 18.5473, "lon": 73.8980, "line": "Aqua"},
+    {"name": "Kalyani Nagar",     "lat": 18.5478, "lon": 73.9042, "line": "Aqua"},
+    {"name": "Ramwadi",           "lat": 18.5491, "lon": 73.9138, "line": "Aqua"},
+]
+
+
+COVERAGE_RADIUS_M = 500  # metres
+
+@app.get("/api/metro-feeder")
+def api_metro_feeder():
+    """
+    Cross-reference 29 Pune Metro stations with PMPML feeder bus routes.
+    Classifies each station as 'desert' (≤1 route), 'poor' (2 routes), or 'adequate' (3+).
+    Source: Maha Metro EoI 2025, PMC transport survey.
+    """
+    results = []
+    desert_stations = []
+
+    for station in PUNE_METRO_STATIONS:
+        # Count routes with a stop within COVERAGE_RADIUS_M of this metro station
+        feeder_routes = []
+        for route in _routes:
+            for stop in route.get("stop_coordinates", []):
+                dist = haversine(station["lat"], station["lon"], stop["lat"], stop["lon"])
+                if dist <= COVERAGE_RADIUS_M:
+                    feeder_routes.append(route["route_name"])
+                    break  # one stop per route is enough
+
+        count = len(feeder_routes)
+        if count <= 1:
+            coverage = "desert"
+            color = "#e53935"
+        elif count == 2:
+            coverage = "poor"
+            color = "#e88c00"
+        else:
+            coverage = "adequate"
+            color = "#00a86b"
+
+        entry = {
+            "name": station["name"],
+            "lat": station["lat"],
+            "lon": station["lon"],
+            "line": station["line"],
+            "feeder_route_count": count,
+            "feeder_routes": feeder_routes[:5],
+            "coverage": coverage,
+            "color": color,
+        }
+        results.append(entry)
+        if coverage == "desert":
+            desert_stations.append(station["name"])
+
+    desert_count = sum(1 for r in results if r["coverage"] == "desert")
+    poor_count   = sum(1 for r in results if r["coverage"] == "poor")
+
+    return {
+        "stations": results,
+        "summary": {
+            "total_stations": len(results),
+            "desert_count": desert_count,
+            "poor_count": poor_count,
+            "adequate_count": len(results) - desert_count - poor_count,
+            "desert_stations": desert_stations,
+            "coverage_radius_m": COVERAGE_RADIUS_M,
+            "source": "Maha Metro EoI 2025 · PMPML Network Data",
+        },
     }
 
 
