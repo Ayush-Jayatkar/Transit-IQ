@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { MapContainer, TileLayer, Polyline, CircleMarker, Popup, useMap } from 'react-leaflet';
 import { motion, AnimatePresence } from 'framer-motion';
-import { PersonStanding, Bus, ArrowRightLeft, Train, Clock, Sunrise, Sunset, Trees, Compass, Search, Map as MapIcon, Zap, Leaf, Timer, Repeat, CreditCard, MapPin, AlertTriangle } from 'lucide-react';
+import { PersonStanding, Bus, ArrowRightLeft, Train, Clock, Sunrise, Sunset, Trees, Compass, Search, Map as MapIcon, Zap, Leaf, Timer, Repeat, CreditCard, MapPin, AlertTriangle, ShieldAlert } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import api from '../api.js';
+
 
 /* ── helpers ─────────────────────────────────────────────────────────────── */
 const MODE_ICONS = { walk: <PersonStanding size={16}/>, bus: <Bus size={16}/>, transfer: <ArrowRightLeft size={16}/>, metro: <Train size={16}/> };
@@ -168,6 +169,32 @@ export default function PassengerApp() {
     const [error, setError] = useState('');
     const [mapCenter, setMapCenter] = useState([18.5204, 73.8567]);
     const [routeLine, setRouteLine] = useState([]);
+
+    // A5: Issue reporter state
+    const [showIssueModal, setShowIssueModal] = useState(false);
+    const [issueType, setIssueType] = useState('');
+    const [issueDesc, setIssueDesc] = useState('');
+    const [issueToast, setIssueToast] = useState('');
+    const [issueSubmitting, setIssueSubmitting] = useState(false);
+
+    const submitIssue = useCallback(async () => {
+        if (!issueType) return;
+        setIssueSubmitting(true);
+        try {
+            await api.submitIssue({ lat: mapCenter[0], lon: mapCenter[1], type: issueType, description: issueDesc });
+            setShowIssueModal(false);
+            setIssueType('');
+            setIssueDesc('');
+            setIssueToast('✅ Report submitted — operators notified!');
+            setTimeout(() => setIssueToast(''), 4000);
+        } catch {
+            setIssueToast('❌ Failed to submit. Try again.');
+            setTimeout(() => setIssueToast(''), 3000);
+        } finally {
+            setIssueSubmitting(false);
+        }
+    }, [issueType, issueDesc, mapCenter]);
+
 
     const search = useCallback(async () => {
         if (!origin.trim() || !dest.trim()) return;
@@ -449,7 +476,71 @@ export default function PassengerApp() {
                         </CircleMarker>
                     )}
                 </MapContainer>
+
+                {/* A5: Floating Report Issue button */}
+                <button onClick={() => setShowIssueModal(true)} style={{
+                    position: 'absolute', bottom: 24, right: 24, zIndex: 600,
+                    background: 'linear-gradient(135deg,#ff6f00,#ff9800)',
+                    color: '#fff', border: 'none', borderRadius: '50px',
+                    padding: '13px 20px', cursor: 'pointer', fontWeight: 800, fontSize: 13,
+                    boxShadow: '0 4px 20px rgba(255,111,0,0.5)',
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    animation: 'pulse 2.5s infinite',
+                }}>
+                    <ShieldAlert size={16} /> Report Issue
+                </button>
+
+                {/* A5: Toast notification */}
+                {issueToast && (
+                    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                        style={{
+                            position: 'absolute', bottom: 80, right: 24, zIndex: 700,
+                            background: '#0d1b3e', color: '#fff', borderRadius: 10,
+                            padding: '12px 18px', fontSize: 13, fontWeight: 600,
+                            boxShadow: '0 4px 20px rgba(0,0,0,0.25)',
+                        }}>
+                        {issueToast}
+                    </motion.div>
+                )}
             </div>
+
+            {/* A5: Issue Reporter Modal */}
+            {showIssueModal && (
+                <div style={{
+                    position: 'fixed', inset: 0, zIndex: 9999,
+                    background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(4px)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                    <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+                        style={{ background: '#fff', borderRadius: 16, padding: '24px', width: 340, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+                        <div style={{ fontSize: 18, fontWeight: 800, color: '#0d1b3e', marginBottom: 4 }}>🚨 Report an Issue</div>
+                        <div style={{ fontSize: 11, color: '#9aafc4', marginBottom: 18 }}>Operators will be notified instantly</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 16 }}>
+                            {['Overcrowded', 'Bus Not Arrived', 'Breakdown Seen', 'Safety Issue'].map(t => (
+                                <button key={t} onClick={() => setIssueType(t)} style={{
+                                    padding: '12px 8px', borderRadius: 10, border: `2px solid ${issueType === t ? '#ff6f00' : 'rgba(15,40,90,0.15)'}`,
+                                    background: issueType === t ? '#fff3e0' : '#f8fafc',
+                                    cursor: 'pointer', fontSize: 12, fontWeight: 700,
+                                    color: issueType === t ? '#ff6f00' : '#4a5f80', transition: 'all 0.15s',
+                                }}>{t}</button>
+                            ))}
+                        </div>
+                        <textarea value={issueDesc} onChange={e => setIssueDesc(e.target.value)}
+                            placeholder="Additional details (optional)…"
+                            style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1.5px solid rgba(15,40,90,0.15)', fontSize: 12, outline: 'none', resize: 'none', height: 70, boxSizing: 'border-box', fontFamily: 'Inter,sans-serif', marginBottom: 14 }} />
+                        <div style={{ display: 'flex', gap: 8 }}>
+                            <button onClick={() => setShowIssueModal(false)} style={{ flex: 1, padding: '11px', borderRadius: 9, border: '1px solid rgba(15,40,90,0.15)', background: '#f8fafc', cursor: 'pointer', fontSize: 13, color: '#9aafc4', fontWeight: 600 }}>Cancel</button>
+                            <button onClick={submitIssue} disabled={!issueType || issueSubmitting} style={{
+                                flex: 2, padding: '11px', borderRadius: 9, border: 'none',
+                                background: issueType ? 'linear-gradient(135deg,#ff6f00,#ff9800)' : '#e8edf8',
+                                color: issueType ? '#fff' : '#9aafc4', cursor: issueType ? 'pointer' : 'not-allowed',
+                                fontWeight: 800, fontSize: 13,
+                            }}>{issueSubmitting ? 'Submitting…' : '🚨 Submit Report'}</button>
+                        </div>
+                    </motion.div>
+                </div>
+            )}
         </div>
     );
 }
+

@@ -96,6 +96,21 @@ body,
   background: rgba(15, 40, 90, 0.30);
 }
 
+/* ── Custom Scrollbar for horizontal scrolling ── */
+.custom-scrollbar::-webkit-scrollbar {
+  height: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(15, 40, 90, 0.12);
+  border-radius: 99px;
+}
+.custom-scrollbar:hover::-webkit-scrollbar-thumb {
+  background: rgba(15, 40, 90, 0.25);
+}
+
 /* ── Cards ── */
 .card {
   background: var(--bg-card);

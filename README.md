@@ -14,7 +14,31 @@ Transit-IQ is a fully closed-loop, production-grade intelligent transit manageme
 
 ---
 
+<<<<<<< HEAD
+## 📸 Platform Gallery
+
+### 1. Modern Landing Page
+The entry point of Transit-IQ featuring dynamic text animations, animated statistics counters, and a professional dark-themed design system.
+![Landing Page](docs/hero.png)
+
+### 2. Live Fleet Tracking
+A real-time command center for operators to monitor PMPML bus locations, route status, and congestion levels using interactive Leaflet maps.
+![Fleet Tracking](docs/fleet.png)
+
+### 3. Demand Forecasting
+Deep-dive into route-specific forecasts within the Operator Dashboard. Features real-time demand curves, 4-hour forward-looking peaks, and integrated historical comparisons such as Weekday vs. Weekend volume profiles to anticipate passenger surges.
+![Demand Forecasting](docs/demand.png)
+
+### 4. Fleet Optimization
+Data-driven fleet deployment interface that allows operators to visualize live bus distribution and apply mathematically optimized strategies. Provides a visual tradeoff analysis between wait scores, fuel costs, and passenger coverage based on live telemetry.
+![Fleet Optimization](docs/optimize.png)
+
+---
+
+## 🌟 Key Features
+=======
 ## 📸 Screenshots
+>>>>>>> 43f78161cdfc88006500f22435bd5004ed7d5ad0
 
 > **Operator Command Center Dashboard**
 

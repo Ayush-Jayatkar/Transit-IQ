@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, CircleMarker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, LineChart, Line, Legend } from 'recharts';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Map, CheckCircle, AlertCircle, Clock, Activity, Thermometer, Brain, TrendingUp, Bot, Leaf, Building, Wrench, Globe, Settings, Users, Bus, ArrowRight, Zap, Target } from 'lucide-react';
+import { Map, CheckCircle, AlertCircle, Clock, Activity, Thermometer, Brain, TrendingUp, Bot, Leaf, Building, Wrench, Globe, Settings, Users, Bus, ArrowRight, Zap, Target, Banknote, Navigation, MessageSquare, AlertTriangle, PlayCircle, ShieldAlert, Train } from 'lucide-react';
 import api from '../api.js';
 import 'leaflet/dist/leaflet.css';
 
@@ -151,6 +151,21 @@ export default function OperatorDashboard() {
     const [timeOfDayProfile, setTimeOfDayProfile] = useState(null);
     const [tradeoffs, setTradeoffs] = useState(null);
 
+    // ── Round 3 state ──────────────────────────────────────────────────────
+    const [bunching, setBunching] = useState([]);
+    const [issues, setIssues] = useState([]);
+    const [revenueLoss, setRevenueLoss] = useState(null);
+    const [revCounter, setRevCounter] = useState(0);
+    const [metroFeeder, setMetroFeeder] = useState(null);
+    const [showMetroFeeder, setShowMetroFeeder] = useState(false);
+    const [scenarioResult, setScenarioResult] = useState(null);
+    const [scenarioLoading, setScenarioLoading] = useState(false);
+    const [aiMessages, setAiMessages] = useState([{ role: 'assistant', content: '👋 Hi! Ask me anything about the live fleet — e.g. "Which routes need more buses?" or "How many breakdowns today?"' }]);
+    const [aiInput, setAiInput] = useState('');
+    const [aiLoading, setAiLoading] = useState(false);
+    const aiEndRef = useRef(null);
+    const GROQ_KEY = import.meta.env.VITE_GROQ_KEY || '';
+
     const load = useCallback(async () => {
         try {
             const [r, b, w, fc, re, al, to] = await Promise.all([
@@ -190,7 +205,39 @@ export default function OperatorDashboard() {
 
     useEffect(() => { const iv = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(iv); }, []);
 
-    /* live metrics computed directly from bus data */
+    // ── Round 3 polling ──────────────────────────────────────────────────────
+    useEffect(() => {
+        const poll = () => {
+            api.getBunching().then(setBunching).catch(() => {});
+            api.getIssues().then(setIssues).catch(() => {});
+        };
+        poll();
+        const iv = setInterval(poll, 8000);
+        return () => clearInterval(iv);
+    }, []);
+
+    // Revenue loss live counter — fetch once then tick per second
+    useEffect(() => {
+        api.getRevenueLoss().then(d => { setRevenueLoss(d); setRevCounter(d.loss_today_inr); }).catch(() => {});
+        const refresh = setInterval(() => api.getRevenueLoss().then(setRevenueLoss).catch(() => {}), 30000);
+        return () => clearInterval(refresh);
+    }, []);
+
+    useEffect(() => {
+        if (!revenueLoss) return;
+        const iv = setInterval(() => setRevCounter(c => Math.round(c + (revenueLoss.loss_per_second_inr || 0))), 1000);
+        return () => clearInterval(iv);
+    }, [revenueLoss]);
+
+    // Metro feeder: load when toggled on
+    useEffect(() => {
+        if (showMetroFeeder && !metroFeeder) api.getMetroFeeder().then(setMetroFeeder).catch(() => {});
+    }, [showMetroFeeder, metroFeeder]);
+
+    // AI Copilot: auto-scroll chat
+    useEffect(() => { aiEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [aiMessages]);
+
+
     const total = buses.length;
     // On schedule = delay ≤ 5 min OR status is on_time (realistic Pune threshold)
     const onTimeN = buses.filter(b => b.delay_min <= 5 || b.status === 'on_time').length;
@@ -226,6 +273,34 @@ export default function OperatorDashboard() {
             </div>
         </div>
     );
+
+    // ── AI Copilot send function ──────────────────────────────────────────
+    const sendAiMessage = async () => {
+        if (!aiInput.trim() || aiLoading) return;
+        const userMsg = aiInput.trim();
+        setAiInput('');
+        setAiMessages(m => [...m, { role: 'user', content: userMsg }]);
+        setAiLoading(true);
+        try {
+            const context = `You are an AI assistant for Transit-IQ, an AI-powered bus fleet management system for PMPML Pune. Current live data: ${total} buses active, ${onTimePct}% on schedule, ${crowdedN} crowded, ${breakdownN} breakdowns, ${pendRecs.length} pending recommendations. Routes: ${routes.map(r=>r.route_name).join(', ')}. Bunching alerts: ${bunching.length}. Passenger issues reported: ${issues.length}. Answer concisely in 2-3 sentences using this real data.`;
+            const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                method: 'POST',
+                headers: { 'Authorization': `Bearer ${GROQ_KEY}`, 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: 'llama-3.1-8b-instant',
+                    messages: [{ role: 'system', content: context }, ...aiMessages.slice(-6), { role: 'user', content: userMsg }],
+                    max_tokens: 200,
+                }),
+            });
+            const data = await res.json();
+            const reply = data?.choices?.[0]?.message?.content || 'Sorry, could not get a response. Check your GROQ_KEY.';
+            setAiMessages(m => [...m, { role: 'assistant', content: reply }]);
+        } catch {
+            setAiMessages(m => [...m, { role: 'assistant', content: '⚠️ Could not reach Groq API. Set VITE_GROQ_KEY in your .env file.' }]);
+        } finally {
+            setAiLoading(false);
+        }
+    };
 
     return (
         <div style={{ display: 'flex', height: '100%', overflow: 'hidden', background: '#eef2f8', fontFamily: 'Inter,sans-serif' }}>
@@ -407,6 +482,10 @@ export default function OperatorDashboard() {
                             <input type="range" min="5" max="23" value={heatmapHour} onChange={e => setHeatmapHour(parseInt(e.target.value))} style={{ width: '100%', accentColor: '#e53935' }} />
                         </div>
                     )}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: '#0d1b3e' }}>🚇 Metro Feeders</span>
+                        <input type="checkbox" checked={showMetroFeeder} onChange={e => setShowMetroFeeder(e.target.checked)} />
+                    </div>
                 </div>
 
                 {/* Map legend */}
@@ -460,12 +539,55 @@ export default function OperatorDashboard() {
                             </CircleMarker>
                         );
                     })}
+                    {/* A2: Bus Bunching markers */}
+                    {bunching.map((ev, i) => (
+                        <CircleMarker key={'bunch'+i} center={[ev.lat, ev.lon]}
+                            radius={12} color='#e53935' fillColor='#ff1744' fillOpacity={0.85} weight={2.5}>
+                            <Popup>
+                                <div style={{ fontFamily: 'Inter,sans-serif', fontSize: 12, lineHeight: 1.6 }}>
+                                    <strong style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#e53935' }}><AlertTriangle size={13} /> Bus Bunching</strong><br />
+                                    Route: <strong>{ev.route_name}</strong><br />
+                                    {ev.bus1_id} &amp; {ev.bus2_id}<br />
+                                    Distance: <strong>{ev.distance_m} m</strong><br />
+                                    <em style={{ color: '#4a5f80', fontSize: 11 }}>{ev.action}</em>
+                                </div>
+                            </Popup>
+                        </CircleMarker>
+                    ))}
+                    {/* A5: Passenger Issue markers */}
+                    {issues.map((iss, i) => (
+                        <CircleMarker key={'iss'+i} center={[iss.lat, iss.lon]}
+                            radius={9} color='#ff6f00' fillColor='#ff9800' fillOpacity={0.9} weight={2}>
+                            <Popup>
+                                <div style={{ fontFamily: 'Inter,sans-serif', fontSize: 12, lineHeight: 1.6 }}>
+                                    <strong style={{ display: 'flex', alignItems: 'center', gap: 4, color: '#ff6f00' }}><ShieldAlert size={13} /> {iss.type}</strong><br />
+                                    {iss.route_id && <>Route: <strong>{iss.route_id}</strong><br /></>}
+                                    Time: <strong>{iss.time_display}</strong><br />
+                                    {iss.description && <em style={{ fontSize: 11, color: '#4a5f80' }}>{iss.description}</em>}
+                                </div>
+                            </Popup>
+                        </CircleMarker>
+                    ))}
+                    {/* B4: Metro Feeder Station markers */}
+                    {showMetroFeeder && metroFeeder?.stations?.map((st, i) => (
+                        <CircleMarker key={'metro'+i} center={[st.lat, st.lon]}
+                            radius={10} color={st.color} fillColor={st.color} fillOpacity={0.75} weight={3}>
+                            <Popup>
+                                <div style={{ fontFamily: 'Inter,sans-serif', fontSize: 12, lineHeight: 1.6 }}>
+                                    <strong style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Train size={13} /> {st.name}</strong> ({st.line} Line)<br />
+                                    Feeder routes: <strong>{st.feeder_route_count}</strong><br />
+                                    Coverage: <strong style={{ color: st.color }}>{st.coverage}</strong>
+                                    {st.feeder_routes.length > 0 && <><br /><em style={{ fontSize: 10, color: '#9aafc4' }}>{st.feeder_routes.slice(0,3).join(', ')}</em></>}
+                                </div>
+                            </Popup>
+                        </CircleMarker>
+                    ))}
                 </MapContainer>
             </div>
 
             {/* ══════ RIGHT PANEL ══════ */}
             <div style={{
-                width: rightOpen ? 346 : 0, flexShrink: 0, overflow: 'hidden',
+                width: rightOpen ? 400 : 0, flexShrink: 0, overflow: 'hidden',
                 transition: 'width 0.25s ease', position: 'relative',
                 background: '#f8fafc', borderLeft: '1px solid rgba(15,40,90,0.09)',
                 display: 'flex', flexDirection: 'column',
@@ -473,13 +595,18 @@ export default function OperatorDashboard() {
                 {rightOpen && <AnimatePresence mode="popLayout"><motion.div
                     initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} transition={{ duration: 0.3 }}
                     style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-                    {/* Tab bar */}
-                    <div style={{ padding: '10px 10px 7px', background: '#fff', borderBottom: '1px solid rgba(15,40,90,0.08)', display: 'flex', gap: 4, flexShrink: 0, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                    {/* Tab bar — horizontally scrollable */}
+                    <div className="custom-scrollbar" style={{ padding: '10px 10px 7px', background: '#fff', borderBottom: '1px solid rgba(15,40,90,0.08)', display: 'flex', gap: 6, flexShrink: 0, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
                         <TabBtn id="fleet" label="Fleet" icon={<Bus size={14}/>} />
                         <TabBtn id="demand" label="Demand" icon={<TrendingUp size={14}/>}/>
                         <TabBtn id="optimize" label="Optimize" icon={<Settings size={14}/>}/>
                         <TabBtn id="alerts" label="Alerts" icon={<AlertCircle size={14}/>} badge={alerts.length} />
                         <TabBtn id="ai" label="AI" icon={<Bot size={14}/>} />
+                        <TabBtn id="revenue" label="Revenue" icon={<Banknote size={14}/>} />
+                        <TabBtn id="scenarios" label="Scenarios" icon={<PlayCircle size={14}/>} />
+                        <TabBtn id="issues" label="Issues" icon={<ShieldAlert size={14}/>} badge={issues.length} />
+                        <TabBtn id="metro" label="Metro" icon={<Train size={14}/>} />
+                        <TabBtn id="ai_chat" label="AI Chat" icon={<MessageSquare size={14}/>} />
                     </div>
 
                     {/* ── FLEET tab ── */}
@@ -678,6 +805,182 @@ export default function OperatorDashboard() {
                                     </div>
                                 </>
                             )}
+                        </motion.div>
+                    )}
+
+                    {/* ── REVENUE LOSS tab (B1) ── */}
+                    {tab === 'revenue' && (
+                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} style={{ flex: 1, overflowY: 'auto', padding: '14px 14px' }}>
+                            <div style={{ textAlign: 'center', marginBottom: 16, padding: '18px 14px', background: 'linear-gradient(135deg,#1a0505,#3a0a0a)', borderRadius: 14, border: '1px solid #e5393522' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 11, color: '#ff8a80', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 6 }}>
+                                    <Banknote size={14} /> PMPML Revenue Lost Today
+                                </div>
+                                <div style={{ fontSize: 34, fontWeight: 900, color: '#ff5252', fontFamily: 'JetBrains Mono,monospace', letterSpacing: '-1px', animation: 'pulse 2s infinite' }}>
+                                    ₹{revCounter.toLocaleString('en-IN')}
+                                </div>
+                                <div style={{ fontSize: 11, color: '#9aafc4', marginTop: 6 }}>due to {revenueLoss?.breakdown_buses || 0} breakdown buses · ₹12,500/bus/day</div>
+                            </div>
+                            <div style={{ background: '#fff', borderRadius: 12, padding: '14px', border: '1px solid rgba(15,40,90,0.09)', marginBottom: 10 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 800, color: '#00a86b', marginBottom: 8 }}>
+                                    <CheckCircle size={14} /> If Transit-IQ reduces breakdowns by 30%
+                                </div>
+                                <div style={{ fontSize: 22, fontWeight: 900, color: '#00a86b', fontFamily: 'monospace' }}>{revenueLoss?.saving_display || '₹8.25 crore/year'}</div>
+                                <div style={{ fontSize: 10, color: '#9aafc4', marginTop: 4 }}>saved annually for PMPML</div>
+                            </div>
+                            <div style={{ fontSize: 10, color: '#9aafc4', textAlign: 'center', padding: '4px 0' }}>Source: {revenueLoss?.source || 'CAG Report PMPML 2022-23'}</div>
+                        </motion.div>
+                    )}
+
+                    {/* ── SCENARIOS tab (A4) ── */}
+                    {tab === 'scenarios' && (
+                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} style={{ flex: 1, overflowY: 'auto', padding: '14px 12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, color: '#0d1b3e', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+                                <PlayCircle size={14} /> Pune Demand Scenarios
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
+                                {[{id:'ganpati',name:'Ganpati Festival',color:'#e53935'},{id:'rain',name:'Heavy Rain',color:'#1a6cf5'},{id:'ipl',name:'IPL Match',color:'#e88c00'},{id:'monday',name:'Monday Rush',color:'#6c3acb'}].map(sc => (
+                                    <button key={sc.id} onClick={async () => {
+                                        setScenarioLoading(true); setScenarioResult(null);
+                                        try { const r = await api.runScenario(sc.id); setScenarioResult(r); } catch {}
+                                        finally { setScenarioLoading(false); }
+                                    }} style={{
+                                        padding: '14px 10px', borderRadius: 12, border: `2px solid ${sc.color}33`,
+                                        background: scenarioResult?.scenario_id === sc.id ? `${sc.color}15` : '#fff',
+                                        cursor: 'pointer', textAlign: 'center', transition: 'all 0.2s'
+                                    }}>
+                                        <div style={{ fontSize: 12, fontWeight: 800, color: sc.color }}>{sc.name}</div>
+                                    </button>
+                                ))}
+                            </div>
+                            {scenarioLoading && <div style={{ textAlign: 'center', color: '#9aafc4', padding: 20 }}>Simulating…</div>}
+                            {scenarioResult && (
+                                <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} style={{ background: '#fff', borderRadius: 12, padding: '14px', border: '1px solid rgba(15,40,90,0.09)' }}>
+                                    <div style={{ fontSize: 14, fontWeight: 800, color: '#0d1b3e', marginBottom: 4 }}>{scenarioResult.name}</div>
+                                    <div style={{ fontSize: 10, color: '#4a5f80', marginBottom: 12, lineHeight: 1.5 }}>{scenarioResult.description}</div>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                                        {[
+                                            { label: 'Demand Surge', val: `+${scenarioResult.demand_surge_pct}%`, c: '#e53935' },
+                                            { label: 'Extra Buses', val: scenarioResult.extra_buses_needed, c: '#e88c00' },
+                                            { label: 'Deployment Cost', val: scenarioResult.cost_display, c: '#1a6cf5' },
+                                            { label: `Readiness (${scenarioResult.readiness_label})`, val: scenarioResult.readiness_score + '/100', c: scenarioResult.readiness_score >= 70 ? '#00a86b' : scenarioResult.readiness_score >= 40 ? '#e88c00' : '#e53935' },
+                                        ].map(m => (
+                                            <div key={m.label} style={{ background: '#f8fafc', borderRadius: 8, padding: '10px', textAlign: 'center', border: `1px solid ${m.c}22` }}>
+                                                <div style={{ fontSize: 18, fontWeight: 900, color: m.c, fontFamily: 'monospace' }}>{m.val}</div>
+                                                <div style={{ fontSize: 9, color: '#9aafc4', textTransform: 'uppercase', marginTop: 2 }}>{m.label}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div style={{ fontSize: 9, color: '#9aafc4', marginTop: 10, textAlign: 'right' }}>Source: {scenarioResult.source}</div>
+                                </motion.div>
+                            )}
+                        </motion.div>
+                    )}
+
+                    {/* ── ISSUES tab (A5) ── */}
+                    {tab === 'issues' && (
+                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} style={{ flex: 1, overflowY: 'auto', padding: '14px 12px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, color: '#0d1b3e', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+                                    <ShieldAlert size={14} /> Passenger Reports
+                                </div>
+                                <span style={{ fontSize: 10, color: '#9aafc4' }}>{issues.length} active</span>
+                            </div>
+                            {issues.length === 0 ? (
+                                <div style={{ textAlign: 'center', color: '#9aafc4', padding: '30px', fontSize: 12, background: '#fff', borderRadius: 10 }}>
+                                    <CheckCircle size={16} style={{ display: 'block', margin: '0 auto 8px', color: '#00a86b' }} />
+                                    No passenger reports
+                                </div>
+                            ) : issues.map((iss, i) => (
+                                <div key={iss.id} style={{ background: '#fff', borderRadius: 10, padding: '11px 12px', marginBottom: 8, border: '1px solid #ff9800aa22', borderLeft: '4px solid #ff9800' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontWeight: 700, color: '#ff6f00' }}><AlertTriangle size={12} /> {iss.type}</span>
+                                        <span style={{ fontSize: 10, color: '#9aafc4' }}>{iss.time_display}</span>
+                                    </div>
+                                    {iss.route_id && <div style={{ fontSize: 10, color: '#4a5f80' }}>Route: <strong>{iss.route_id}</strong></div>}
+                                    {iss.description && <div style={{ fontSize: 10, color: '#4a5f80', marginTop: 2 }}>{iss.description}</div>}
+                                    <div style={{ fontSize: 9, color: '#c0ccdf', marginTop: 4 }}><Navigation size={9} style={{ display: 'inline', marginRight: 2 }} /> {iss.lat?.toFixed(4)}, {iss.lon?.toFixed(4)}</div>
+                                </div>
+                            ))}
+                        </motion.div>
+                    )}
+
+                    {/* ── METRO FEEDER tab (B4) ── */}
+                    {tab === 'metro' && (
+                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} style={{ flex: 1, overflowY: 'auto', padding: '14px 12px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, color: '#0d1b3e', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+                                <Train size={14} /> Metro Feeder Coverage
+                            </div>
+                            {!metroFeeder ? (
+                                <div style={{ textAlign: 'center', padding: 20 }}>
+                                    <button onClick={() => { setShowMetroFeeder(true); api.getMetroFeeder().then(setMetroFeeder).catch(() => {}); }}
+                                        style={{ padding: '10px 20px', borderRadius: 10, background: '#1a6cf5', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 700 }}>Load Metro Feeder Data</button>
+                                </div>
+                            ) : (
+                                <>
+                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6, marginBottom: 14 }}>
+                                        {[
+                                            { label: 'Feeder Deserts', val: metroFeeder.summary.desert_count, c: '#e53935', desc: '≤1 bus route' },
+                                            { label: 'Poor Coverage', val: metroFeeder.summary.poor_count, c: '#e88c00', desc: '2 routes' },
+                                            { label: 'Adequate', val: metroFeeder.summary.adequate_count, c: '#00a86b', desc: '3+ routes' },
+                                        ].map(m => (
+                                            <div key={m.label} style={{ background: '#fff', borderRadius: 10, padding: '10px 8px', textAlign: 'center', border: `1px solid ${m.c}33` }}>
+                                                <div style={{ fontSize: 22, fontWeight: 900, color: m.c, fontFamily: 'monospace' }}>{m.val}</div>
+                                                <div style={{ fontSize: 9, color: '#9aafc4', textTransform: 'uppercase' }}>{m.label}</div>
+                                                <div style={{ fontSize: 8, color: m.c }}>{m.desc}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontSize: 11, fontWeight: 700, color: '#e53935' }}>
+                                        <AlertTriangle size={14} /> Feeder Deserts (action needed):
+                                    </div>
+                                    {metroFeeder.summary.desert_stations.map(s => (
+                                        <div key={s} style={{ background: '#fff', borderRadius: 8, padding: '8px 11px', marginBottom: 6, border: '1px solid #e5393533', display: 'flex', alignItems: 'center', gap: 8 }}>
+                                            <Train size={16} color="#e53935" />
+                                            <div>
+                                                <div style={{ fontSize: 12, fontWeight: 700, color: '#0d1b3e' }}>{s}</div>
+                                                <div style={{ fontSize: 10, color: '#e53935' }}>No feeder bus — add connecting route</div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                    <div style={{ fontSize: 9, color: '#9aafc4', marginTop: 8 }}>Source: {metroFeeder.summary.source}</div>
+                                </>
+                            )}
+                        </motion.div>
+                    )}
+
+                    {/* ── AI CHAT tab (A1) ── */}
+                    {tab === 'ai_chat' && (
+                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                            style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                            {!GROQ_KEY && (
+                                <div style={{ margin: '10px 12px', padding: '10px 12px', background: '#fff8e1', borderRadius: 8, border: '1px solid #e88c0055', fontSize: 11, color: '#e88c00' }}>
+                                    ⚠️ Set <strong>VITE_GROQ_KEY</strong> in your <code>.env</code> file to enable AI Copilot.<br />
+                                    <span style={{ fontSize: 10 }}>Get a free key at console.groq.com</span>
+                                </div>
+                            )}
+                            <div style={{ flex: 1, overflowY: 'auto', padding: '12px 12px 4px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                {aiMessages.map((msg, i) => (
+                                    <div key={i} style={{ display: 'flex', justifyContent: msg.role === 'user' ? 'flex-end' : 'flex-start' }}>
+                                        <div style={{
+                                            maxWidth: '85%', padding: '9px 12px', borderRadius: msg.role === 'user' ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
+                                            background: msg.role === 'user' ? '#1a6cf5' : '#fff',
+                                            color: msg.role === 'user' ? '#fff' : '#0d1b3e',
+                                            fontSize: 12, lineHeight: 1.55, border: msg.role !== 'user' ? '1px solid rgba(15,40,90,0.09)' : 'none',
+                                            boxShadow: '0 1px 4px rgba(15,40,90,0.08)',
+                                        }}>{msg.content}</div>
+                                    </div>
+                                ))}
+                                {aiLoading && <div style={{ textAlign: 'left' }}><div style={{ display: 'inline-block', padding: '9px 12px', background: '#fff', borderRadius: '14px 14px 14px 4px', border: '1px solid rgba(15,40,90,0.09)', fontSize: 12, color: '#9aafc4' }}>Thinking…</div></div>}
+                                <div ref={aiEndRef} />
+                            </div>
+                            <div style={{ padding: '10px 12px', borderTop: '1px solid rgba(15,40,90,0.08)', background: '#fff', display: 'flex', gap: 8 }}>
+                                <input value={aiInput} onChange={e => setAiInput(e.target.value)}
+                                    onKeyDown={e => e.key === 'Enter' && sendAiMessage()}
+                                    placeholder="Ask about the live fleet…"
+                                    style={{ flex: 1, padding: '9px 12px', borderRadius: 8, border: '1.5px solid rgba(15,40,90,0.15)', fontSize: 12, outline: 'none', fontFamily: 'Inter,sans-serif' }} />
+                                <button onClick={sendAiMessage} disabled={aiLoading || !aiInput.trim()}
+                                    style={{ padding: '9px 14px', borderRadius: 8, border: 'none', background: '#1a6cf5', color: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>➤</button>
+                            </div>
                         </motion.div>
                     )}
 

@@ -52,6 +52,26 @@ export const api = {
     // ── Round 2: Multi-Objective Optimization ────────────────────────────
     getOptimizeTradeoffs: () => fetcher('/api/optimize/tradeoffs'),
     applyStrategy: (strategyId) => fetch(`${BASE}/api/optimize/apply/${strategyId}`, { method: 'POST' }).then(r => r.json()),
+
+    // ── Round 3: Bus Bunching Detector ───────────────────────────────────
+    getBunching: () => fetcher('/api/bunching'),
+
+    // ── Round 3: Scenario Simulator ──────────────────────────────────────
+    runScenario: (id) => fetcher(`/api/scenario/${id}`),
+
+    // ── Round 3: Passenger Issue Reporter ────────────────────────────────
+    getIssues: () => fetcher('/api/issues'),
+    submitIssue: (data) => fetch(`${BASE}/api/issues`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+    }).then(r => r.json()),
+
+    // ── Round 3: Revenue Loss Counter ────────────────────────────────────
+    getRevenueLoss: () => fetcher('/api/revenue-loss'),
+
+    // ── Round 3: Metro Feeder Desert Map ─────────────────────────────────
+    getMetroFeeder: () => fetcher('/api/metro-feeder'),
 };
 
 export default api;
