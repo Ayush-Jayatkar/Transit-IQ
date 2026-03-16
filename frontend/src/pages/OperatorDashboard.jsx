@@ -136,6 +136,8 @@ export default function OperatorDashboard() {
     const [forecast, setForecast] = useState({});
     const [recs, setRecs] = useState([]);
     const [alerts, setAlerts] = useState([]);
+    const [rebalance, setRebalance] = useState(null);
+    const [eventsInfo, setEventsInfo] = useState({ active_events: [] });
     const [accuracy, setAccuracy] = useState(null);
     const [sdg, setSdg] = useState(null);
     const [selRoute, setSelRoute] = useState(null);
@@ -153,13 +155,18 @@ export default function OperatorDashboard() {
 
     const load = useCallback(async () => {
         try {
-            const [r, b, w, fc, re, al, to] = await Promise.all([
+            const currentHour = new Date().getHours();
+            const [r, b, w, fc, re, al, to, rb, ev] = await Promise.all([
                 api.getRoutes(), api.getBuses(), api.getWeather(),
                 api.getForecast(), api.getRecommendations(), api.getAlerts(),
-                api.getOptimizeTradeoffs().catch(() => null)
+                api.getOptimizeTradeoffs().catch(() => null),
+                api.getRebalance().catch(() => null),
+                api.getEvents(currentHour).catch(() => null)
             ]);
             setRoutes(r); setBuses(b); setWeather(w); setForecast(fc); setRecs(re); setAlerts(al);
             if (to) setTradeoffs(to);
+            if (rb) setRebalance(rb);
+            if (ev) setEventsInfo(ev);
         } catch (e) { console.error(e); } finally { setLoading(false); }
     }, []);
 
@@ -431,6 +438,36 @@ export default function OperatorDashboard() {
                             <Popup><div style={{ fontFamily: 'Inter,sans-serif', fontSize: 12 }}><strong>{s.name}</strong><br />Stop {i + 1} · {selObj.route_name}</div></Popup>
                         </CircleMarker>
                     ))}
+                    {/* Real-time Fleet Rebalancing Surges Highlight */}
+                    {rebalance?.actions?.filter(a => a.surge).map((a, i) => {
+                        const surgeRoute = routes.find(r => r.route_id === a.route_id);
+                        if (!surgeRoute || !surgeRoute.stop_coordinates || surgeRoute.stop_coordinates.length === 0) return null;
+                        const firstStop = surgeRoute.stop_coordinates[0];
+                        return (
+                            <CircleMarker key={'surge' + i} center={[firstStop.lat, firstStop.lon]} radius={15} color="#e53935" fillColor="#e53935" fillOpacity={0.4} weight={2} className="map-surge-glow">
+                                <Popup>
+                                    <div style={{ fontFamily: 'Inter,sans-serif', fontSize: 12 }}>
+                                        <strong>⚡ Demand Surge: {surgeRoute.route_name}</strong><br />
+                                        Rebalancing: +{a.extra_buses} buses<br />
+                                        From: {a.source_routes.join(', ')}
+                                    </div>
+                                </Popup>
+                            </CircleMarker>
+                        );
+                    })}
+                    {/* Event Intelligence Zones */}
+                    {eventsInfo?.active_events?.map((ev, i) => (
+                        <CircleMarker key={'event' + i} center={[ev.lat, ev.lon]} radius={30} color="#f97316" fillColor="#f97316" fillOpacity={0.25} weight={2}>
+                            <Popup>
+                                <div style={{ fontFamily: 'Inter,sans-serif', fontSize: 12 }}>
+                                    <strong>{ev.event_name}</strong><br />
+                                    Location: {ev.location}<br />
+                                    Surge Multiplier: x{ev.demand_multiplier}<br />
+                                    Buses Needed: +{ev.extra_buses_needed}
+                                </div>
+                            </Popup>
+                        </CircleMarker>
+                    ))}
                     {visBuses.map(b => (
                         <Marker key={b.bus_id} position={[b.lat, b.lon]} icon={busIcon(b.status)}>
                             <Popup>
@@ -478,6 +515,7 @@ export default function OperatorDashboard() {
                         <TabBtn id="fleet" label="Fleet" icon={<Bus size={14}/>} />
                         <TabBtn id="demand" label="Demand" icon={<TrendingUp size={14}/>}/>
                         <TabBtn id="optimize" label="Optimize" icon={<Settings size={14}/>}/>
+                        <TabBtn id="events" label="Events" icon={<Zap size={14}/>} badge={eventsInfo?.active_events?.length || 0} />
                         <TabBtn id="alerts" label="Alerts" icon={<AlertCircle size={14}/>} badge={alerts.length} />
                         <TabBtn id="ai" label="AI" icon={<Bot size={14}/>} />
                     </div>
@@ -756,38 +794,107 @@ export default function OperatorDashboard() {
                             </div>
                         </motion.div>
                     )}
-                    {/* ── OPTIMIZE tab ── */}
-                    {tab === 'optimize' && tradeoffs && (
+                    
+                    {/* ── EVENTS tab ── */}
+                    {tab === 'events' && (
                         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} style={{ flex: 1, overflowY: 'auto' }}>
-                            <SectionHdr icon={<Settings size={14}/>} right="Multi-Objective">Fleet Strategies</SectionHdr>
+                            <SectionHdr icon={<Zap size={14}/>} right={eventsInfo?.active_events?.length ? "Active" : "Scan Active"}>Event Intelligence</SectionHdr>
                             <div style={{ padding: '0 12px 12px' }}>
-                                <div style={{ fontSize: 11, color: '#4a5f80', marginBottom: 12, lineHeight: 1.5, background: '#fff', padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(15,40,90,0.08)' }}>
-                                    <strong>{tradeoffs.pending_recs} bottlenecks detected</strong> across {tradeoffs.total_routes} routes. Select an allocation strategy to prioritize either passenger wait time or fleet fuel cost.
-                                </div>
-                                <div style={{ background: '#fff', borderRadius: 12, padding: '10px', marginBottom: 16, border: '1px solid rgba(15,40,90,0.09)' }}>
-                                    <ResponsiveContainer width="100%" height={220}>
-                                        <RadarChart cx="50%" cy="50%" outerRadius="70%" data={[
-                                            { subject: 'Wait Score', A: tradeoffs.strategies[0].radar.wait_score, B: tradeoffs.strategies[1].radar.wait_score, C: tradeoffs.strategies[2].radar.wait_score, fullMark: 100 },
-                                            { subject: 'Fuel Score', A: tradeoffs.strategies[0].radar.fuel_score, B: tradeoffs.strategies[1].radar.fuel_score, C: tradeoffs.strategies[2].radar.fuel_score, fullMark: 100 },
-                                            { subject: 'Coverage', A: tradeoffs.strategies[0].radar.coverage_score, B: tradeoffs.strategies[1].radar.coverage_score, C: tradeoffs.strategies[2].radar.coverage_score, fullMark: 100 }
-                                        ]}>
-                                            <PolarGrid stroke="#eef1f8" />
-                                            <PolarAngleAxis dataKey="subject" tick={{ fill: '#4a5f80', fontSize: 10, fontWeight: 700 }} />
-                                            <Radar name="Time-Optimal" dataKey="A" stroke={tradeoffs.strategies[0].color} fill={tradeoffs.strategies[0].color} fillOpacity={0.2} />
-                                            <Radar name="Fuel-Optimal" dataKey="B" stroke={tradeoffs.strategies[1].color} fill={tradeoffs.strategies[1].color} fillOpacity={0.2} />
-                                            <Radar name="Balanced" dataKey="C" stroke={tradeoffs.strategies[2].color} fill={tradeoffs.strategies[2].color} fillOpacity={0.2} />
-                                            <Tooltip contentStyle={{ fontSize: 10 }} />
-                                            <Legend wrapperStyle={{ fontSize: 10 }} />
-                                        </RadarChart>
-                                    </ResponsiveContainer>
-                                </div>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                                    {tradeoffs.strategies.map(st => (
-                                        <div key={st.id} style={{
-                                            background: st.recommended ? '#f4faf6' : '#fff',
-                                            borderRadius: 12, padding: '12px 14px',
-                                            border: `2px solid ${st.recommended ? st.color : 'rgba(15,40,90,0.08)'}`,
-                                        }}>
+                                {eventsInfo?.active_events?.length > 0 ? (
+                                    eventsInfo.active_events.map((ev, i) => (
+                                        <div key={i} className="event-panel">
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                                <span style={{ fontSize: 16 }}>⚡</span>
+                                                <div className="event-title">{ev.event_name} Detected</div>
+                                            </div>
+                                            <div style={{ marginTop: 8, paddingLeft: 26 }} className="event-impact">
+                                                Location: {ev.location}<br />
+                                                Demand Surge: +{Math.round((ev.demand_multiplier - 1) * 100)}%
+                                            </div>
+                                            <div style={{ marginTop: 12, paddingLeft: 26, fontSize: 12, color: '#4a5f80' }}>
+                                                Recommended Action:
+                                                <div className="event-action">Deploy +{ev.extra_buses_needed} buses</div>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : (
+                                    <div style={{ padding: '16px', textAlign: 'center', background: '#f8fafc', borderRadius: 10, color: '#9aafc4', fontSize: 12, border: '1px solid rgba(15,40,90,0.08)' }}>
+                                        <Leaf size={16} style={{display:'inline', verticalAlign:'middle', marginRight: 6}}/> No active city events affecting transit right now.
+                                    </div>
+                                )}
+                            </div>
+                        </motion.div>
+                    )}
+                    
+                    {/* ── OPTIMIZE tab ── */}
+                    {tab === 'optimize' && (
+                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} style={{ flex: 1, overflowY: 'auto' }}>
+                            {/* NEW: Real-Time Fleet Rebalancing Panel */}
+                            {rebalance && (
+                                <>
+                                    <SectionHdr icon={<Zap size={14}/>} right={rebalance.surges_detected > 0 ? "Active" : "Stable"}>Real-Time Fleet Rebalancing</SectionHdr>
+                                    <div style={{ padding: '0 12px 16px' }}>
+                                        {rebalance.actions.length === 0 ? (
+                                            <div style={{ padding: '16px', textAlign: 'center', background: '#f4faf6', border: '1px solid rgba(0,168,107,0.2)', borderRadius: 10, color: '#00a86b', fontSize: 12 }}>
+                                                <CheckCircle size={16} style={{display:'inline', verticalAlign:'middle', marginRight: 6}}/> Demand is stable. No surges detected.
+                                            </div>
+                                        ) : (
+                                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                                                {rebalance.actions.map((act, i) => {
+                                                    const rName = routes.find(r => r.route_id === act.route_id)?.route_name || act.route_id;
+                                                    const sNames = act.source_routes.map(sr => routes.find(r => r.route_id === sr)?.route_name || sr);
+                                                    return (
+                                                        <div key={i} style={{ background: '#fff', borderRadius: 10, padding: '12px 14px', border: '1px solid rgba(229,57,53,0.3)', boxShadow: '0 2px 8px rgba(229,57,53,0.06)' }}>
+                                                            <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
+                                                                <span style={{ fontSize: 16 }}>⚡</span>
+                                                                <span style={{ fontSize: 13, fontWeight: 800, color: '#e53935' }}>Surge detected on {rName}</span>
+                                                            </div>
+                                                            <div style={{ fontSize: 12, color: '#0d1b3e', marginBottom: 4, paddingLeft: 24 }}>
+                                                                Deploy <strong>+{act.extra_buses} buses</strong> from {sNames.join(' and ')}
+                                                            </div>
+                                                            <div style={{ fontSize: 11, color: '#00a86b', fontWeight: 600, paddingLeft: 24, marginTop: 6 }}>
+                                                                Expected wait time improvement: {act.expected_improvement} minutes
+                                                            </div>
+                                                        </div>
+                                                    )
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
+                                </>
+                            )}
+                            
+                            {tradeoffs && (
+                                <>
+                                    <SectionHdr icon={<Settings size={14}/>} right="Multi-Objective">Fleet Strategies</SectionHdr>
+                                    <div style={{ padding: '0 12px 12px' }}>
+                                        <div style={{ fontSize: 11, color: '#4a5f80', marginBottom: 12, lineHeight: 1.5, background: '#fff', padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(15,40,90,0.08)' }}>
+                                            <strong>{tradeoffs.pending_recs} bottlenecks detected</strong> across {tradeoffs.total_routes} routes. Select an allocation strategy to prioritize either passenger wait time or fleet fuel cost.
+                                        </div>
+                                        <div style={{ background: '#fff', borderRadius: 12, padding: '10px', marginBottom: 16, border: '1px solid rgba(15,40,90,0.09)' }}>
+                                            <ResponsiveContainer width="100%" height={220}>
+                                                <RadarChart cx="50%" cy="50%" outerRadius="70%" data={[
+                                                    { subject: 'Wait Score', A: tradeoffs.strategies[0].radar.wait_score, B: tradeoffs.strategies[1].radar.wait_score, C: tradeoffs.strategies[2].radar.wait_score, fullMark: 100 },
+                                                    { subject: 'Fuel Score', A: tradeoffs.strategies[0].radar.fuel_score, B: tradeoffs.strategies[1].radar.fuel_score, C: tradeoffs.strategies[2].radar.fuel_score, fullMark: 100 },
+                                                    { subject: 'Coverage', A: tradeoffs.strategies[0].radar.coverage_score, B: tradeoffs.strategies[1].radar.coverage_score, C: tradeoffs.strategies[2].radar.coverage_score, fullMark: 100 }
+                                                ]}>
+                                                    <PolarGrid stroke="#eef1f8" />
+                                                    <PolarAngleAxis dataKey="subject" tick={{ fill: '#4a5f80', fontSize: 10, fontWeight: 700 }} />
+                                                    <Radar name="Time-Optimal" dataKey="A" stroke={tradeoffs.strategies[0].color} fill={tradeoffs.strategies[0].color} fillOpacity={0.2} />
+                                                    <Radar name="Fuel-Optimal" dataKey="B" stroke={tradeoffs.strategies[1].color} fill={tradeoffs.strategies[1].color} fillOpacity={0.2} />
+                                                    <Radar name="Balanced" dataKey="C" stroke={tradeoffs.strategies[2].color} fill={tradeoffs.strategies[2].color} fillOpacity={0.2} />
+                                                    <Tooltip contentStyle={{ fontSize: 10 }} />
+                                                    <Legend wrapperStyle={{ fontSize: 10 }} />
+                                                </RadarChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                                            {tradeoffs.strategies.map(st => (
+                                                <div key={st.id} style={{
+                                                    background: st.recommended ? '#f4faf6' : '#fff',
+                                                    borderRadius: 12, padding: '12px 14px',
+                                                    border: `2px solid ${st.recommended ? st.color : 'rgba(15,40,90,0.08)'}`,
+                                                }}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                                                 <div style={{ fontSize: 13, fontWeight: 800, color: st.color }}>{st.name}</div>
                                                 <div style={{ fontSize: 12, fontWeight: 900, color: '#0d1b3e' }}>+{st.extra_buses_needed} <span style={{ fontSize: 10, color: '#9aafc4' }}>buses</span></div>
@@ -832,6 +939,8 @@ export default function OperatorDashboard() {
                                     ))}
                                 </div>
                             </div>
+                            </>
+                            )}
                         </motion.div>
                     )}
                 </motion.div></AnimatePresence>}

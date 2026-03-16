@@ -23,6 +23,7 @@ export const api = {
     // ── Fleet ────────────────────────────────────────────────────────────
     getRecommendations: () => fetcher('/api/recommendations'),
     getAlerts: () => fetcher('/api/alerts'),
+    getRebalance: () => fetcher('/api/rebalance'),
     approveRec: (id) => fetch(`${BASE}/api/recommendations/${id}/approve`, { method: 'POST' }).then(r => r.json()),
     rejectRec: (id) => fetch(`${BASE}/api/recommendations/${id}/reject`, { method: 'POST' }).then(r => r.json()),
 
@@ -37,6 +38,7 @@ export const api = {
 
     // ── Round 2: SDG Impact ──────────────────────────────────────────────
     getSdgImpact: () => fetcher('/api/sdg-impact'),
+    getEvents: (hour) => fetcher('/api/events' + (hour !== undefined ? `?hour=${hour}` : '')),
 
     // ── Round 2: RAPTOR Route Planning ───────────────────────────────────
     planRoute: (origin, dest, time_min = 480) =>

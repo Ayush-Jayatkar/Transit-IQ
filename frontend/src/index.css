@@ -380,3 +380,41 @@ body,
 input {
   font-family: var(--font-main);
 }
+
+/* ── Live Surge Glow ── */
+@keyframes surge-pulse {
+  0% { stroke-width: 2px; filter: drop-shadow(0 0 4px rgba(229, 57, 53, 0.4)); opacity: 1; transform: scale(0.9); }
+  50% { stroke-width: 6px; filter: drop-shadow(0 0 15px rgba(229, 57, 53, 0.9)); opacity: 0.8; transform: scale(1.1); }
+  100% { stroke-width: 2px; filter: drop-shadow(0 0 4px rgba(229, 57, 53, 0.4)); opacity: 1; transform: scale(0.9); }
+}
+
+.map-surge-glow {
+  transform-origin: center;
+  animation: surge-pulse 1.5s infinite ease-in-out;
+}
+
+/* ── Event Intelligence ── */
+.event-panel {
+  background: #fff7ed;
+  border: 2px solid #f97316;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 10px;
+}
+
+.event-title {
+  font-weight: 700;
+  color: #c2410c;
+}
+
+.event-impact {
+  font-size: 13px;
+  color: #7c2d12;
+}
+
+.event-action {
+  margin-top: 6px;
+  font-weight: 600;
+  color: #dc2626;
+}
+

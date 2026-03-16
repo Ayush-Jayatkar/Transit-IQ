@@ -36,6 +36,8 @@ from models.route_planner      import (
     raptor_search, build_stop_index, compute_stop_demand,
     get_timeofday_profile, compute_tradeoffs
 )
+from models.rebalancer import rebalance_fleet
+from models.event_intelligence import get_active_events
 
 _stop_index = {}   # populated at startup
 
@@ -61,6 +63,8 @@ _recommendations = []
 _alerts         = []
 _metrics        = {}
 _rec_counter    = 0
+_rebalance_actions = []
+_surges_detected = 0
 
 _lock = threading.Lock()
 _initialized = False
@@ -149,6 +153,10 @@ def _refresh_recs_and_alerts():
         new_alerts  = update_and_detect(_forecasts, _buses)
         raw_health  = get_system_health(_buses)
         total       = len(_buses)
+        
+        # Determine surges and dynamic fleet rebalancing actions
+        rb_result = rebalance_fleet(_routes, _buses, _forecasts)
+        
         # Augment health dict with keys expected by /api/sdg-impact
         new_metrics = {
             **raw_health,
@@ -162,6 +170,9 @@ def _refresh_recs_and_alerts():
         with _lock:
             _alerts  = new_alerts
             _metrics = new_metrics
+            global _rebalance_actions, _surges_detected
+            _rebalance_actions = rb_result["actions"]
+            _surges_detected = rb_result["surges_detected"]
     except Exception as e:
         print(f"⚠️ Alert refresh error: {e}")
 
@@ -399,6 +410,21 @@ def reject_rec(rec_id: str, background: BackgroundTasks):
 def api_alerts():
     return _alerts
 
+@app.get("/api/rebalance")
+def api_rebalance():
+    return {
+        "actions": _rebalance_actions,
+        "surges_detected": _surges_detected
+    }
+
+@app.get("/api/events")
+def api_events(hour: Optional[int] = None):
+    # Default to current hour if not provided
+    h = hour if hour is not None else datetime.now().hour
+    active = get_active_events(h, _forecasts)
+    return {
+        "active_events": active
+    }
 
 # ══════════════════════════════════════════════════════════════════════════════
 #   ROUTE PLANNING — RAPTOR Algorithm
